@@ -1,9 +1,16 @@
 # ─────────────────────────────────────────────────────────
 #  MacroVision · config.py
-#  ad79f88649c7ff5fc860ff94ca192616
+#  Lee FRED_API_KEY desde variable de entorno (Streamlit Cloud)
 # ─────────────────────────────────────────────────────────
 
-FRED_API_KEY = "ad79f88649c7ff5fc860ff94ca192616"   # ← único paso manual
+import os
+
+# Intenta obtener la clave desde las variables de entorno
+# En Streamlit Cloud, las secrets se inyectan como variables de entorno automáticamente
+FRED_API_KEY = os.getenv("FRED_API_KEY", "")
+
+if not FRED_API_KEY:
+    print("⚠️ ADVERTENCIA: FRED_API_KEY no está configurada. Las actualizaciones de datos fallarán.")
 
 # ── FRED series para FED (USA) ────────────────────────────
 FRED_SERIES = {
@@ -20,14 +27,11 @@ FRED_SERIES = {
 
 # ── Bancos centrales: tasas vía fuentes oficiales ─────────
 BANK_RATE_URLS = {
-    # ECB — sin API key
-    "BCE": "https://data-api.ecb.europa.eu/service/data/FM/M.U2.EUR.RT0.MM.ESTRVOLWI.R?format=jsondata&lastNObservations=1",
-    # BOE — sin API key
+    "BCE": "https://data-api.ecb.europa.eu/service/data/ICP/M.U2.EUR.4F.DP00?format=jsondata&lastNObservations=1",
     "BOE": "https://www.bankofengland.co.uk/boeapps/database/fromshowcolumns.asp?Travel=NIxSUx&FromSeries=1&ToSeries=50&DAT=RNG&FD=1&FM=Jan&FY=2024&TD=31&TM=Dec&TY=2026&VFD=Y&html.x=66&html.y=26&C=BYQ&Filter=N",
 }
 
 # ── World Bank: indicadores por código país ───────────────
-# Formato: {serie_WB: (label, categoría)}
 WORLD_BANK_SERIES = {
     "FP.CPI.TOTL.ZG":    ("CPI Inflation y/y",     "INFLACIÓN"),
     "NY.GDP.MKTP.KD.ZG":  ("GDP Growth y/y",        "CRECIMIENTO"),
