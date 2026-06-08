@@ -337,33 +337,60 @@ with tab1:
 #  TAB 2 · TASAS HISTÓRICAS
 # ══════════════════════════════════════════════════════
 with tab2:
+   
     st.markdown('<div class="section-label">▪ EVOLUCIÓN HISTÓRICA DE TASAS — TODOS LOS BANCOS CENTRALES</div>', unsafe_allow_html=True)
 
     fig = go.Figure()
+    from datetime import datetime
+
+    def parse_month_year(date_str):
+        # Convierte "Ene-24" o "May-24" a datetime
+        meses = {"Ene":"Jan","Feb":"Feb","Mar":"Mar","Abr":"Apr","May":"May","Jun":"Jun",
+                 "Jul":"Jul","Ago":"Aug","Sep":"Sep","Oct":"Oct","Nov":"Nov","Dic":"Dec"}
+        for es, en in meses.items():
+            date_str = date_str.replace(es, en)
+        try:
+            return datetime.strptime(date_str, "%b-%y")
+        except:
+            return datetime(1900, 1, 1)
+
     for k, b in data.items():
         rates = b.get("rates", [])
-        if not rates: continue
-        dates = [r["date"] for r in rates]
-        vals  = [r["r"]    for r in rates]
+        if not rates:
+            continue
+        # Ordenar por fecha ascendente
+        rates_sorted = sorted(rates, key=lambda x: parse_month_year(x["date"]))
+        dates = [r["date"] for r in rates_sorted]
+        vals  = [r["r"] for r in rates_sorted]
         fig.add_trace(go.Scatter(
             x=dates, y=vals, name=k, mode="lines+markers",
-            line=dict(color=BANK_COLORS.get(k, "#fff"), width=2),
-            marker=dict(size=4),
+            line=dict(color=BANK_COLORS.get(k, "#fff"), width=3),
+            marker=dict(size=6, symbol="circle", line=dict(width=1, color="white")),
             connectgaps=True,
             hovertemplate=f"<b>{k}</b><br>%{{x}}: %{{y:.2f}}%<extra></extra>"
         ))
 
     fig.update_layout(
+        title=dict(text="Evolución de tasas de interés", font=dict(color="white", size=14), x=0.5),
         paper_bgcolor="#0d1117", plot_bgcolor="#0d1117",
-        font=dict(family="JetBrains Mono", color="#9ca3af", size=10),
-        xaxis=dict(gridcolor="#1f2937", showline=False, tickfont=dict(size=9)),
-        yaxis=dict(gridcolor="#1f2937", showline=False, ticksuffix="%", tickfont=dict(size=9)),
+        font=dict(family="JetBrains Mono", color="#e2e8f0", size=11),
+        xaxis=dict(
+            gridcolor="#1f2937",
+            tickangle=-30,
+            tickfont=dict(size=10),
+            title="Fecha",
+            # Asegurar orden cronológico
+            type="category",
+            categoryorder="array",
+            categoryarray=sorted(set([r["date"] for b in data.values() for r in b.get("rates",[])]), 
+                                 key=parse_month_year)
+        ),
+        yaxis=dict(gridcolor="#1f2937", ticksuffix="%", tickfont=dict(size=10), title="Tasa (%)"),
         legend=dict(bgcolor="#0d1117", bordercolor="#1f2937", borderwidth=1,
-                    font=dict(family="JetBrains Mono", size=11)),
-        margin=dict(l=20, r=20, t=20, b=20), height=360,
-        hovermode="x unified",
+                    font=dict(size=11), orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+        margin=dict(l=40, r=40, t=60, b=80), height=450, hovermode="x unified"
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # Barras de progreso min/max
     st.markdown("**COMPARATIVA TASAS — CICLO ACTUAL**", unsafe_allow_html=False)
