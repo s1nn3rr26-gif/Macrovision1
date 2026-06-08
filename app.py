@@ -13,7 +13,24 @@ import os
 from datetime import datetime
 
 # ── Page config ──────────────────────────────────────────
-st.set_page_config(
+from datetime import datetime
+
+def fecha_a_key(fecha_str):
+    """
+    Convierte 'Ene-24' -> (2024, 1), 'May-26' -> (2026, 5)
+    """
+    meses = {
+        "Ene": 1, "Feb": 2, "Mar": 3, "Abr": 4, "May": 5, "Jun": 6,
+        "Jul": 7, "Ago": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dic": 12
+    }
+    try:
+        mes_str, año_str = fecha_str.split("-")
+        mes = meses.get(mes_str, 1)
+        año = 2000 + int(año_str) if len(año_str) == 2 else int(año_str)
+        return (año, mes)
+    except:
+        return (1900, 1)st.
+set_page_config(
     page_title="MacroVision",
     page_icon="📊",
     layout="wide",
