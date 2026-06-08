@@ -12,12 +12,13 @@ import json
 import os
 from datetime import datetime
 
-# ── Page config ──────────────────────────────────────────
-from datetime import datetime
-
+# ============================================================
+# FUNCIÓN AUXILIAR PARA ORDENAR FECHAS (DEBE IR AL PRINCIPIO)
+# ============================================================
 def fecha_a_key(fecha_str):
     """
     Convierte 'Ene-24' -> (2024, 1), 'May-26' -> (2026, 5)
+    Para ordenar cronológicamente las fechas en la gráfica de tasas.
     """
     meses = {
         "Ene": 1, "Feb": 2, "Mar": 3, "Abr": 4, "May": 5, "Jun": 6,
@@ -29,55 +30,21 @@ def fecha_a_key(fecha_str):
         año = 2000 + int(año_str) if len(año_str) == 2 else int(año_str)
         return (año, mes)
     except:
-        return (1900, 1)st.
-set_page_config(
+        return (1900, 1)
+
+# ── Page config ──────────────────────────────────────────
+st.set_page_config(
     page_title="MacroVision",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-# ─────────────────────────────────────────────────────────
-#  AUTORIZACIÓN (CONTRASEÑA)
-# ─────────────────────────────────────────────────────────
-def check_password():
-    """Retorna True si el usuario está autenticado."""
-    if "authenticated" not in st.session_state:
-        st.session_state.authenticated = False
 
-    if st.session_state.authenticated:
-        return True
-
-    # Contraseña fija (cámbiala por la que quieras)
-    PASSWORD = "Macro2026"   # ← Cambia aquí la contraseña
-
-    st.markdown("""
-        <div style="display: flex; justify-content: center; align-items: center; height: 70vh;">
-            <div style="background: #0d1117; padding: 2rem; border-radius: 20px; border: 1px solid #333; text-align: center;">
-                <h2 style="color: #fff;">🔐 Acceso restringido</h2>
-                <p style="color: #aaa;">Ingresa la contraseña para continuar</p>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    password_input = st.text_input("Contraseña", type="password", key="pass_input")
-    if st.button("Entrar"):
-        if password_input == PASSWORD:
-            st.session_state.authenticated = True
-            st.rerun()
-        else:
-            st.error("Contraseña incorrecta")
-    return False
-
-# Verificar autenticación al inicio
-if not check_password():
-    st.stop()  # No mostrar nada más si no está autenticado
-    
 # ── CSS: alto contraste (fondo negro, texto blanco) ──────
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
-  /* Todo el fondo negro y texto blanco */
   html, body, [class*="css"], .stApp, .main, .block-container {
     background: #000000 !important;
     color: #ffffff !important;
@@ -305,7 +272,6 @@ tab1, tab2, tab3 = st.tabs(["📊  Sentimiento", "📈  Tasas", "🔍  Indicador
 with tab1:
     st.markdown('<div class="section-label">▪ MATRIZ DE SENTIMIENTO — ÚLTIMA REUNIÓN DISPONIBLE</div>', unsafe_allow_html=True)
 
-    # Construir tabla HTML
     banks_list = list(data.keys())
     header = '<div class="ind-row ind-header" style="grid-template-columns:140px repeat(6,1fr)">'
     header += '<span>CATEGORÍA</span>'
@@ -327,7 +293,6 @@ with tab1:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Resumen por banco
     cols2 = st.columns(6)
     for i, (k, b) in enumerate(data.items()):
         with cols2[i]:
@@ -351,28 +316,27 @@ with tab1:
             """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════
-#  TAB 2 · TASAS HISTÓRICAS
+#  TAB 2 · TASAS HISTÓRICAS (CORREGIDO: ORDEN CRONOLÓGICO)
 # ══════════════════════════════════════════════════════
 with tab2:
-   
-   with tab2:
     st.markdown('<div class="section-label">▪ EVOLUCIÓN HISTÓRICA DE TASAS — TODOS LOS BANCOS CENTRALES</div>', unsafe_allow_html=True)
 
     fig = go.Figure()
 
-    # Obtener todas las fechas únicas de todos los bancos (para fijar el orden del eje X)
+    # Recolectar todas las fechas únicas de todos los bancos
     todas_fechas = set()
     for b in data.values():
         for r in b.get("rates", []):
             todas_fechas.add(r["date"])
-    # Ordenar las fechas cronológicamente
+    
+    # Ordenar las fechas usando la función auxiliar (definida al inicio)
     fechas_ordenadas = sorted(list(todas_fechas), key=fecha_a_key)
 
     for k, b in data.items():
         rates = b.get("rates", [])
         if not rates:
             continue
-        # Ordenar las tasas del banco actual
+        # Ordenar las tasas del banco individual también cronológicamente
         rates_ordenadas = sorted(rates, key=lambda x: fecha_a_key(x["date"]))
         dates = [r["date"] for r in rates_ordenadas]
         vals  = [r["r"] for r in rates_ordenadas]
@@ -393,7 +357,6 @@ with tab2:
             tickangle=-30,
             tickfont=dict(size=10),
             title="Fecha",
-            # Forzar orden de las categorías en el eje X
             type="category",
             categoryorder="array",
             categoryarray=fechas_ordenadas
@@ -404,7 +367,7 @@ with tab2:
         margin=dict(l=40, r=40, t=60, b=80), height=450, hovermode="x unified"
     )
     st.plotly_chart(fig, width='stretch')
-    # Barras de progreso min/max
+
     st.markdown("**COMPARATIVA TASAS — CICLO ACTUAL**", unsafe_allow_html=False)
     cols3 = st.columns(6)
     for i, (k, b) in enumerate(data.items()):
@@ -439,7 +402,6 @@ with tab3:
     bank = data.get(sel, {})
     color = BANK_COLORS.get(sel, "#fff")
 
-    # Selector de banco
     bank_sel = st.selectbox("Banco Central", list(data.keys()), index=list(data.keys()).index(sel))
     if bank_sel != sel:
         st.session_state.selected = bank_sel
@@ -447,7 +409,6 @@ with tab3:
 
     st.markdown(f'<div class="section-label">▪ INDICADORES CLAVE — <span style="color:{color}">{sel}</span> {bank.get("flag","")} {bank.get("fullName","")}</div>', unsafe_allow_html=True)
 
-    # Sentimiento por categoría
     sent = bank.get("sentiment", {})
     cols4 = st.columns(6)
     for i, cat in enumerate(CATEGORIES):
@@ -466,7 +427,6 @@ with tab3:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Tabla de indicadores
     indicators = bank.get("indicators", [])
     cat_colors = {"INFLACIÓN":"#3b82f6","CRECIMIENTO":"#8b5cf6","EMPLEO":"#10b981","CONSUMO":"#f59e0b","ACTIVIDAD":"#ec4899","INMOBILIARIO":"#06b6d4"}
 
@@ -489,13 +449,14 @@ with tab3:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Mini-gráfico de tasas del banco seleccionado
     rates = bank.get("rates", [])
     if rates:
         st.markdown(f'<div class="section-label">HISTORIAL DE TASA — {sel}</div>', unsafe_allow_html=True)
+        # Ordenar también el mini gráfico
+        rates_ordenadas = sorted(rates, key=lambda x: fecha_a_key(x["date"]))
         fig2 = go.Figure()
         fig2.add_trace(go.Scatter(
-            x=[r["date"] for r in rates], y=[r["r"] for r in rates],
+            x=[r["date"] for r in rates_ordenadas], y=[r["r"] for r in rates_ordenadas],
             mode="lines+markers", line=dict(color=color, width=2, shape="hv"),
             marker=dict(size=5, color=color), name=sel,
             hovertemplate="%{x}: %{y:.2f}%<extra></extra>"
@@ -508,7 +469,7 @@ with tab3:
             yaxis=dict(gridcolor="#1f2937", showline=False, ticksuffix="%"),
             margin=dict(l=20, r=20, t=10, b=20), height=200, showlegend=False,
         )
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width='stretch')
 
 # ────────────────────────────────────────────────────────
 #  FOOTER
