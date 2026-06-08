@@ -338,30 +338,27 @@ with tab1:
 # ══════════════════════════════════════════════════════
 with tab2:
    
+   with tab2:
     st.markdown('<div class="section-label">▪ EVOLUCIÓN HISTÓRICA DE TASAS — TODOS LOS BANCOS CENTRALES</div>', unsafe_allow_html=True)
 
     fig = go.Figure()
-    from datetime import datetime
 
-    def parse_month_year(date_str):
-        # Convierte "Ene-24" o "May-24" a datetime
-        meses = {"Ene":"Jan","Feb":"Feb","Mar":"Mar","Abr":"Apr","May":"May","Jun":"Jun",
-                 "Jul":"Jul","Ago":"Aug","Sep":"Sep","Oct":"Oct","Nov":"Nov","Dic":"Dec"}
-        for es, en in meses.items():
-            date_str = date_str.replace(es, en)
-        try:
-            return datetime.strptime(date_str, "%b-%y")
-        except:
-            return datetime(1900, 1, 1)
+    # Obtener todas las fechas únicas de todos los bancos (para fijar el orden del eje X)
+    todas_fechas = set()
+    for b in data.values():
+        for r in b.get("rates", []):
+            todas_fechas.add(r["date"])
+    # Ordenar las fechas cronológicamente
+    fechas_ordenadas = sorted(list(todas_fechas), key=fecha_a_key)
 
     for k, b in data.items():
         rates = b.get("rates", [])
         if not rates:
             continue
-        # Ordenar por fecha ascendente
-        rates_sorted = sorted(rates, key=lambda x: parse_month_year(x["date"]))
-        dates = [r["date"] for r in rates_sorted]
-        vals  = [r["r"] for r in rates_sorted]
+        # Ordenar las tasas del banco actual
+        rates_ordenadas = sorted(rates, key=lambda x: fecha_a_key(x["date"]))
+        dates = [r["date"] for r in rates_ordenadas]
+        vals  = [r["r"] for r in rates_ordenadas]
         fig.add_trace(go.Scatter(
             x=dates, y=vals, name=k, mode="lines+markers",
             line=dict(color=BANK_COLORS.get(k, "#fff"), width=3),
@@ -379,11 +376,10 @@ with tab2:
             tickangle=-30,
             tickfont=dict(size=10),
             title="Fecha",
-            # Asegurar orden cronológico
+            # Forzar orden de las categorías en el eje X
             type="category",
             categoryorder="array",
-            categoryarray=sorted(set([r["date"] for b in data.values() for r in b.get("rates",[])]), 
-                                 key=parse_month_year)
+            categoryarray=fechas_ordenadas
         ),
         yaxis=dict(gridcolor="#1f2937", ticksuffix="%", tickfont=dict(size=10), title="Tasa (%)"),
         legend=dict(bgcolor="#0d1117", bordercolor="#1f2937", borderwidth=1,
@@ -391,7 +387,6 @@ with tab2:
         margin=dict(l=40, r=40, t=60, b=80), height=450, hovermode="x unified"
     )
     st.plotly_chart(fig, width='stretch')
-
     # Barras de progreso min/max
     st.markdown("**COMPARATIVA TASAS — CICLO ACTUAL**", unsafe_allow_html=False)
     cols3 = st.columns(6)
