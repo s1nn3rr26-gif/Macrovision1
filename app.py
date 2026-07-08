@@ -1,6 +1,7 @@
 # ─────────────────────────────────────────────────────────
 #  MacroVision · app.py
-#  Dashboard Streamlit con semáforo macro + alertas de correlación
+#  Dashboard Streamlit con semáforo macro, alertas de correlación
+#  y conclusiones estratégicas semanales
 # ─────────────────────────────────────────────────────────
 
 import streamlit as st
@@ -140,6 +141,81 @@ def generar_alertas(macro_data):
         })
 
     return alertas
+
+# ============================================================
+# 3. FUNCIÓN DE CONCLUSIONES ESTRATÉGICAS SEMANALES
+# ============================================================
+def generar_conclusion_estrategica(alertas, macro):
+    """
+    Analiza las alertas y los datos macro para generar recomendaciones prácticas.
+    Retorna un dict con régimen, oportunidades, riesgos y recomendación.
+    """
+    if not macro:
+        return {
+            "regimen": "SIN DATOS",
+            "oportunidades": ["No se dispone de datos macro para generar conclusiones."],
+            "riesgos": ["No se dispone de datos macro."],
+            "recomendacion": "Verifica la conexión a internet y la disponibilidad de los datos."
+        }
+
+    dxy = macro['dxy']
+    vix = macro['vix']
+    sp500 = macro['sp500']
+    nasdaq = macro['nasdaq']
+    oro = macro['oro']
+    bond = macro['bond10y']
+
+    dxy_up = dxy['change_pct'] > 0
+    vix_up = vix['change_pct'] > 0
+    if dxy_up and vix_up:
+        regimen = "AVERSIÓN AL RIESGO (Risk-Off)"
+        color = "🔴"
+    elif not dxy_up and not vix_up:
+        regimen = "APETITO POR RIESGO (Risk-On)"
+        color = "🟢"
+    else:
+        regimen = "MIXTO (Divergencia)"
+        color = "🟡"
+
+    oportunidades = []
+    riesgos = []
+
+    if dxy['change_pct'] < 0 and oro['change_pct'] > 0:
+        oportunidades.append("📈 Dólar débil impulsa el oro → Posible largos en metales preciosos (GLD, SILVER).")
+    if dxy['change_pct'] > 0 and oro['change_pct'] < 0:
+        riesgos.append("📉 Dólar fuerte presiona al oro → Evitar largos en metales por ahora.")
+
+    if vix['change_pct'] < 0 and sp500['change_pct'] > 0:
+        oportunidades.append("📊 VIX a la baja y S&P al alza → Entornos favorables para índices (SPY, QQQ).")
+    if vix['change_pct'] > 0 and sp500['change_pct'] < 0:
+        riesgos.append("📉 VIX al alza y S&P a la baja → Aumento de miedo en el mercado, considerar cobertura.")
+
+    if nasdaq['change_pct'] > 0 and vix['change_pct'] > 0:
+        riesgos.append("⚠️ Nasdaq sube pero VIX sube → Divergencia peligrosa. Posible corrección en tecnológicas.")
+
+    if bond['change_pct'] < 0 and oro['change_pct'] > 0:
+        oportunidades.append("📉 Tasas a la baja y oro al alza → Bonos y metales preciosos como refugio (TLT, GLD).")
+    if bond['change_pct'] > 0 and dxy['change_pct'] > 0:
+        riesgos.append("📈 Tasas al alza y dólar fuerte → Presión sobre tecnológicas y empresas con alto endeudamiento.")
+
+    if not oportunidades:
+        oportunidades.append("➡️ Sin señales claras de oportunidad en este momento. Mantener posiciones actuales.")
+    if not riesgos:
+        riesgos.append("➡️ Sin riesgos extremos detectados. Condiciones relativamente estables.")
+
+    if regimen == "APETITO POR RIESGO (Risk-On)":
+        recomendacion = "🟢 **Escenario favorable**: Aumentar exposición a activos de riesgo (acciones, commodities cíclicos). Buscar largos en índices y metales industriales. Mantener cobertura moderada."
+    elif regimen == "AVERSIÓN AL RIESGO (Risk-Off)":
+        recomendacion = "🔴 **Escenario defensivo**: Reducir exposición a riesgo. Buscar refugio en oro, bonos y dólar. Considerar coberturas o posiciones cortas en índices."
+    else:
+        recomendacion = "🟡 **Escenario mixto**: Selección activa de activos. No agregar riesgo de forma agresiva. Priorizar calidad y sectores defensivos."
+
+    return {
+        "regimen": f"{color} {regimen}",
+        "oportunidades": oportunidades,
+        "riesgos": riesgos,
+        "recomendacion": recomendacion
+    }
 
 # ── CSS: alto contraste (fondo negro, texto blanco) ──────
 st.markdown("""
@@ -333,15 +409,14 @@ with col_btn:
         st.session_state.updating = False
         st.rerun()
 
-# ───────────────────────────────────────────────────────────────────
-#  SEMÁFORO MACRO + ALERTAS DE CORRELACIÓN
-# ───────────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════
+#  SEMÁFORO MACRO + ALERTAS + CONCLUSIONES ESTRATÉGICAS
+# ═══════════════════════════════════════════════════════════
 macro = get_macro_data()
 
 if macro:
     st.markdown("### 📊 Semáforo de Régimen Macro")
     
-    # Métricas principales
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric(
@@ -365,7 +440,7 @@ if macro:
             delta_color="normal"
         )
 
-    # Lógica de régimen (DXY + VIX)
+    # Régimen (DXY + VIX)
     dxy_up = macro['dxy']['change_pct'] > 0
     vix_up = macro['vix']['change_pct'] > 0
     
@@ -385,7 +460,7 @@ if macro:
             unsafe_allow_html=True
         )
 
-    # ── Gráfico evolutivo (último mes) ──
+    # ── Gráfico DXY vs VIX (corregido) ──
     with st.expander("📈 Evolución DXY vs VIX (último mes)", expanded=False):
         try:
             dxy_hist = yf.download("DX-Y.NYB", period="1mo", progress=False)
@@ -412,6 +487,12 @@ if macro:
                     margin=dict(l=20, r=20, t=40, b=20),
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5)
                 )
+                # 🔧 CORRECCIÓN: formato de fechas sin horas
+                fig.update_xaxes(
+                    tickformat="%d %b",
+                    tickangle=0,
+                    nticks=10
+                )
                 st.plotly_chart(fig, use_container_width=True)
         except:
             pass
@@ -421,7 +502,7 @@ if macro:
     alertas = generar_alertas(macro)
 
     if not alertas:
-        st.info("ℹ️ No se detectan alertas relevantes en este momento. Los mercados se mueven sin señales extremas.")
+        st.info("ℹ️ No se detectan alertas relevantes en este momento.")
     else:
         for alerta in alertas:
             if alerta['color'] == 'rojo':
@@ -432,6 +513,22 @@ if macro:
                 st.warning(alerta['mensaje'])
             else:
                 st.info(alerta['mensaje'])
+
+    # ── CONCLUSIONES Y RECOMENDACIONES ESTRATÉGICAS ──
+    st.markdown("### 📋 Conclusiones y Recomendaciones Semanales")
+    conclusion = generar_conclusion_estrategica(alertas, macro)
+
+    st.markdown(f"**Régimen actual:** {conclusion['regimen']}")
+
+    with st.expander("🟢 Oportunidades detectadas", expanded=True):
+        for op in conclusion['oportunidades']:
+            st.markdown(f"- {op}")
+
+    with st.expander("🔴 Riesgos a vigilar", expanded=True):
+        for ri in conclusion['riesgos']:
+            st.markdown(f"- {ri}")
+
+    st.markdown(f"**📌 Recomendación semanal:** {conclusion['recomendacion']}")
 
     # ── Tabla de variaciones diarias ──
     with st.expander("📊 Tabla de variaciones diarias", expanded=False):
@@ -450,9 +547,9 @@ if macro:
 else:
     st.info("ℹ️ No se pudieron obtener datos macro (DXY/VIX). Verifica tu conexión a internet.")
 
-# ───────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────
 #  BANK CARDS (selector)
-# ───────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────
 cols = st.columns(6)
 for i, (k, b) in enumerate(data.items()):
     with cols[i]:
