@@ -1,7 +1,6 @@
 # ─────────────────────────────────────────────────────────
 #  MacroVision · app.py
-#  Dashboard Streamlit con botón de actualización
-#  Ejecutar: streamlit run app.py
+#  Dashboard Streamlit con semáforo macro + alertas de correlación
 # ─────────────────────────────────────────────────────────
 
 import streamlit as st
@@ -11,26 +10,7 @@ import plotly.express as px
 import json
 import os
 from datetime import datetime
-
-# ============================================================
-# FUNCIÓN AUXILIAR PARA ORDENAR FECHAS (DEBE IR AL PRINCIPIO)
-# ============================================================
-def fecha_a_key(fecha_str):
-    """
-    Convierte 'Ene-24' -> (2024, 1), 'May-26' -> (2026, 5)
-    Para ordenar cronológicamente las fechas en la gráfica de tasas.
-    """
-    meses = {
-        "Ene": 1, "Feb": 2, "Mar": 3, "Abr": 4, "May": 5, "Jun": 6,
-        "Jul": 7, "Ago": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dic": 12
-    }
-    try:
-        mes_str, año_str = fecha_str.split("-")
-        mes = meses.get(mes_str, 1)
-        año = 2000 + int(año_str) if len(año_str) == 2 else int(año_str)
-        return (año, mes)
-    except:
-        return (1900, 1)
+import yfinance as yf
 
 # ── Page config ──────────────────────────────────────────
 st.set_page_config(
@@ -39,6 +19,127 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# ============================================================
+# 1. FUNCIONES DE DATOS MACRO (DXY, VIX, SP500, NASDAQ, ORO, BONO)
+# ============================================================
+@st.cache_data(ttl=300)
+def get_macro_data():
+    """
+    Obtiene datos de DXY, VIX, SP500, Nasdaq, Oro, Bono 10Y.
+    Retorna un dict con precios y variaciones porcentuales.
+    """
+    try:
+        tickers = {
+            'dxy': 'DX-Y.NYB',
+            'vix': '^VIX',
+            'sp500': '^GSPC',
+            'nasdaq': '^IXIC',
+            'oro': 'GC=F',
+            'bond10y': '^TNX'
+        }
+        data = yf.download(list(tickers.values()), period="2d", progress=False)
+        if data.empty:
+            return None
+
+        result = {}
+        for key, symbol in tickers.items():
+            close = data['Close'][symbol]
+            if len(close) < 2:
+                return None
+            result[key] = {
+                'price': close.iloc[-1],
+                'change_pct': (close.iloc[-1] / close.iloc[-2] - 1) * 100
+            }
+        return result
+    except Exception as e:
+        st.warning(f"⚠️ Error obteniendo datos macro: {e}")
+        return None
+
+# ============================================================
+# 2. MOTOR DE ALERTAS (CORRELACIONES / DIVERGENCIAS)
+# ============================================================
+def generar_alertas(macro_data):
+    """
+    Analiza los cambios de los activos y genera alertas de correlación/divergencia.
+    Retorna una lista de dicts con {mensaje, tipo, color}.
+    """
+    if not macro_data:
+        return []
+
+    alertas = []
+    dxy = macro_data['dxy']
+    vix = macro_data['vix']
+    sp500 = macro_data['sp500']
+    nasdaq = macro_data['nasdaq']
+    oro = macro_data['oro']
+    bond = macro_data['bond10y']
+
+    # 1. Riesgo extremo: DXY y VIX subiendo
+    if dxy['change_pct'] > 0 and vix['change_pct'] > 0:
+        alertas.append({
+            'mensaje': "🔴 DXY y VIX al alza → Escenario de aversión al riesgo (Risk-Off). Probable caída en bolsa y activos de riesgo.",
+            'tipo': 'riesgo',
+            'color': 'rojo'
+        })
+
+    # 2. Apetito por riesgo: DXY y VIX bajando
+    if dxy['change_pct'] < 0 and vix['change_pct'] < 0:
+        alertas.append({
+            'mensaje': "🟢 DXY y VIX a la baja → Escenario de apetito por riesgo (Risk-On). Favorable para bolsa y commodities.",
+            'tipo': 'oportunidad',
+            'color': 'verde'
+        })
+
+    # 3. DXY fuerte y oro débil
+    if dxy['change_pct'] > 0 and oro['change_pct'] < 0:
+        alertas.append({
+            'mensaje': "📉 Dólar fuerte presiona al oro. El metal precioso podría seguir cayendo.",
+            'tipo': 'divergencia',
+            'color': 'naranja'
+        })
+
+    # 4. DXY débil y oro fuerte
+    if dxy['change_pct'] < 0 and oro['change_pct'] > 0:
+        alertas.append({
+            'mensaje': "📈 Dólar débil impulsa al oro. Buen momento para refugio en metales preciosos.",
+            'tipo': 'oportunidad',
+            'color': 'verde'
+        })
+
+    # 5. Nasdaq sube pero VIX también sube (divergencia peligrosa)
+    if nasdaq['change_pct'] > 0 and vix['change_pct'] > 0:
+        alertas.append({
+            'mensaje': "⚠️ Nasdaq sube pero VIX también sube → Divergencia peligrosa. Puede indicar complacencia con miedo latente. Posible corrección inminente.",
+            'tipo': 'divergencia',
+            'color': 'rojo'
+        })
+
+    # 6. Nasdaq y DXY subiendo juntos (correlación inusual)
+    if nasdaq['change_pct'] > 0 and dxy['change_pct'] > 0:
+        alertas.append({
+            'mensaje': "📊 Nasdaq y DXY subiendo juntos → Flujo de capital hacia EEUU. Posible fortaleza, pero vigilar si se rompe la correlación.",
+            'tipo': 'correlacion',
+            'color': 'azul'
+        })
+
+    # 7. Subida de bonos y dólar (presión sobre tecnológicas)
+    if bond['change_pct'] > 0 and dxy['change_pct'] > 0:
+        alertas.append({
+            'mensaje': "📈 Tasas al alza y dólar fuerte → Puede frenar el crecimiento de empresas tecnológicas y de alto endeudamiento.",
+            'tipo': 'riesgo',
+            'color': 'naranja'
+        })
+
+    # 8. Caída de bonos y subida de oro (entorno favorable)
+    if bond['change_pct'] < 0 and oro['change_pct'] > 0:
+        alertas.append({
+            'mensaje': "📉 Tasas a la baja y oro al alza → Entorno favorable para metales preciosos. Refugio en activos no remunerados.",
+            'tipo': 'oportunidad',
+            'color': 'verde'
+        })
+
+    return alertas
 
 # ── CSS: alto contraste (fondo negro, texto blanco) ──────
 st.markdown("""
@@ -100,24 +201,32 @@ st.markdown("""
   .stButton > button:hover { box-shadow: 0 0 30px #3b82f666 !important; transform: translateY(-1px); }
 
   div[data-testid="metric-container"] {
-    background: #111111; border: 1px solid #333333; border-radius: 10px; padding: 14px;
+    background: #0d1117 !important;
+    border: 1px solid #1f2937 !important;
+    border-radius: 10px !important;
+    padding: 14px !important;
   }
-  div[data-testid="metric-container"] label { color: #aaaaaa !important; font-size: 11px; }
+  div[data-testid="metric-container"] label { color: #6b7280 !important; font-size: 11px; }
   div[data-testid="metric-container"] [data-testid="stMetricValue"] { 
-    font-family: 'JetBrains Mono', monospace; font-size: 26px; color: #ffffff;
+    font-family: 'JetBrains Mono', monospace; font-size: 26px; color: #f9fafb;
   }
 
-  .stTabs [data-baseweb="tab-list"] { background: #111111; border-bottom: 1px solid #333333; }
-  .stTabs [data-baseweb="tab"] { color: #cccccc; font-family: 'Space Grotesk'; font-weight: 600; }
+  .stTabs [data-baseweb="tab-list"] { background: #0d1117; border-bottom: 1px solid #1f2937; }
+  .stTabs [data-baseweb="tab"] { color: #6b7280; font-family: 'Space Grotesk'; font-weight: 600; }
   .stTabs [aria-selected="true"] { color: #fff; border-bottom: 2px solid #3b82f6; }
 
   .ind-row {
     display: grid; grid-template-columns: 130px 1fr 100px 100px 120px;
-    padding: 10px 16px; border-bottom: 1px solid #222222; align-items: center;
+    padding: 10px 16px; border-bottom: 1px solid #111827; align-items: center;
     font-family: 'JetBrains Mono', monospace;
   }
-  .ind-header { background: #000000; font-size: 10px; color: #aaaaaa; letter-spacing: 1px; }
-  .stSelectbox > div > div { background: #111111 !important; border-color: #333333 !important; color: #ffffff !important; }
+  .ind-header { background: #070b14; font-size: 10px; color: #4b5563; letter-spacing: 1px; }
+  .stSelectbox > div > div { background: #0d1117 !important; border-color: #1f2937 !important; color: #e2e8f0 !important; }
+  
+  /* Estilos para alertas */
+  .risk-on { background: #10b98122; border: 1px solid #10b98144; color: #10b981; padding: 12px 20px; border-radius: 8px; font-weight: 600; }
+  .risk-off { background: #ef444422; border: 1px solid #ef444444; color: #ef4444; padding: 12px 20px; border-radius: 8px; font-weight: 600; }
+  .risk-mixed { background: #f59e0b22; border: 1px solid #f59e0b44; color: #f59e0b; padding: 12px 20px; border-radius: 8px; font-weight: 600; }
   
   footer { display: none; }
   #MainMenu { visibility: hidden; }
@@ -138,7 +247,7 @@ CAT_ICONS  = {"INFLACIÓN": "📊", "CRECIMIENTO": "📈", "EMPLEO": "👷",
 SENT_ICON  = {"BULLISH": "▲", "BEARISH": "▼", "NEUTRO": "◆"}
 SENT_CLASS = {"BULLISH": "sent-bull", "BEARISH": "sent-bear", "NEUTRO": "sent-neut"}
 
-# ── Datos fallback (del Excel original) — se sobreescribe al actualizar ──
+# Datos fallback (del Excel original) — se sobreescribe al actualizar
 FALLBACK = {
     "FED":  {"name":"FED","flag":"🇺🇸","currency":"USD","fullName":"Federal Reserve","currentRate":3.75,"lastMeeting":"18 Mar 2026","rates":[{"date":"May-24","r":5.50},{"date":"Jun-24","r":5.50},{"date":"Sep-24","r":5.00},{"date":"Nov-24","r":4.75},{"date":"Dic-24","r":4.50},{"date":"Mar-25","r":4.50},{"date":"Sep-25","r":4.25},{"date":"Oct-25","r":4.00},{"date":"Dic-25","r":3.75},{"date":"Mar-26","r":3.75}],"sentiment":{"INFLACIÓN":"BULLISH","CRECIMIENTO":"BEARISH","EMPLEO":"BEARISH","CONSUMO":"BULLISH","ACTIVIDAD":"BEARISH","INMOBILIARIO":"NEUTRO"},"indicators":[{"cat":"INFLACIÓN","name":"CPI y/y","actual":"3.3%","prev":"2.4%","dev":"+0.9%","dir":1},{"cat":"CRECIMIENTO","name":"Advanced GDP q/q","actual":"0.5%","prev":"1.9%","dev":"-1.4%","dir":-1},{"cat":"EMPLEO","name":"NFP Change","actual":"178K","prev":"-133K","dev":"+311K","dir":1},{"cat":"CONSUMO","name":"Retail Sales m/m","actual":"0.6%","prev":"0.1%","dev":"+0.5%","dir":1}]},
     "BCE":  {"name":"BCE","flag":"🇪🇺","currency":"EUR","fullName":"Banco Central Europeo","currentRate":2.15,"lastMeeting":"19 Mar 2026","rates":[{"date":"Jun-24","r":4.25},{"date":"Sep-24","r":3.65},{"date":"Dic-24","r":3.15},{"date":"Mar-25","r":2.65},{"date":"Jun-25","r":2.15},{"date":"Mar-26","r":2.15}],"sentiment":{"INFLACIÓN":"BULLISH","CRECIMIENTO":"BULLISH","EMPLEO":"BULLISH","CONSUMO":"NEUTRO","ACTIVIDAD":"NEUTRO","INMOBILIARIO":"NEUTRO"},"indicators":[{"cat":"INFLACIÓN","name":"EZ CPI Flash y/y","actual":"2.6%","prev":"1.9%","dev":"+0.7%","dir":1},{"cat":"CRECIMIENTO","name":"EZ Flash GDP q/q","actual":"0.3%","prev":"0.3%","dev":"0.0%","dir":0},{"cat":"EMPLEO","name":"EZ Unemployment Rate","actual":"6.2%","prev":"6.3%","dev":"-0.1%","dir":1}]},
@@ -224,9 +333,126 @@ with col_btn:
         st.session_state.updating = False
         st.rerun()
 
-# ────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────
+#  SEMÁFORO MACRO + ALERTAS DE CORRELACIÓN
+# ───────────────────────────────────────────────────────────────────
+macro = get_macro_data()
+
+if macro:
+    st.markdown("### 📊 Semáforo de Régimen Macro")
+    
+    # Métricas principales
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric(
+            label="Dólar (DXY)",
+            value=f"{macro['dxy']['price']:.2f}",
+            delta=f"{macro['dxy']['change_pct']:.2f}%",
+            delta_color="inverse"
+        )
+    with col2:
+        st.metric(
+            label="Miedo (VIX)",
+            value=f"{macro['vix']['price']:.2f}",
+            delta=f"{macro['vix']['change_pct']:.2f}%",
+            delta_color="inverse"
+        )
+    with col3:
+        st.metric(
+            label="Rend. Bono US 10Y",
+            value=f"{macro['bond10y']['price']:.2f}%",
+            delta=f"{macro['bond10y']['change_pct']:.2f}%",
+            delta_color="normal"
+        )
+
+    # Lógica de régimen (DXY + VIX)
+    dxy_up = macro['dxy']['change_pct'] > 0
+    vix_up = macro['vix']['change_pct'] > 0
+    
+    if dxy_up and vix_up:
+        st.markdown(
+            '<div class="risk-off">🔴 ALERTA: DXY y VIX al alza → Régimen de Aversión al Riesgo (Risk-Off). Precaución con activos de riesgo.</div>',
+            unsafe_allow_html=True
+        )
+    elif not dxy_up and not vix_up:
+        st.markdown(
+            '<div class="risk-on">🟢 VÍA LIBRE: DXY y VIX a la baja → Régimen de Apetito por el Riesgo (Risk-On). Condiciones favorables para activos de riesgo.</div>',
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown(
+            '<div class="risk-mixed">🟡 Régimen mixto: Señales divergentes. Precaución y selección activa de activos.</div>',
+            unsafe_allow_html=True
+        )
+
+    # ── Gráfico evolutivo (último mes) ──
+    with st.expander("📈 Evolución DXY vs VIX (último mes)", expanded=False):
+        try:
+            dxy_hist = yf.download("DX-Y.NYB", period="1mo", progress=False)
+            vix_hist = yf.download("^VIX", period="1mo", progress=False)
+            if not dxy_hist.empty and not vix_hist.empty:
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=dxy_hist.index, y=dxy_hist['Close'],
+                    name="DXY", line=dict(color='#3b82f6', width=2)
+                ))
+                fig.add_trace(go.Scatter(
+                    x=vix_hist.index, y=vix_hist['Close'],
+                    name="VIX", line=dict(color='#ef4444', width=2),
+                    yaxis="y2"
+                ))
+                fig.update_layout(
+                    title="Evolución DXY vs VIX",
+                    yaxis=dict(title="DXY", gridcolor="#1f2937"),
+                    yaxis2=dict(title="VIX", overlaying="y", side="right", gridcolor="#1f2937"),
+                    paper_bgcolor="#0d1117",
+                    plot_bgcolor="#0d1117",
+                    font=dict(color="#e2e8f0"),
+                    height=280,
+                    margin=dict(l=20, r=20, t=40, b=20),
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5)
+                )
+                st.plotly_chart(fig, use_container_width=True)
+        except:
+            pass
+
+    # ── ALERTAS DE CORRELACIÓN Y DIVERGENCIA ──
+    st.markdown("### 🔍 Alertas de Correlación y Divergencia")
+    alertas = generar_alertas(macro)
+
+    if not alertas:
+        st.info("ℹ️ No se detectan alertas relevantes en este momento. Los mercados se mueven sin señales extremas.")
+    else:
+        for alerta in alertas:
+            if alerta['color'] == 'rojo':
+                st.error(alerta['mensaje'])
+            elif alerta['color'] == 'verde':
+                st.success(alerta['mensaje'])
+            elif alerta['color'] == 'naranja':
+                st.warning(alerta['mensaje'])
+            else:
+                st.info(alerta['mensaje'])
+
+    # ── Tabla de variaciones diarias ──
+    with st.expander("📊 Tabla de variaciones diarias", expanded=False):
+        df_macro = pd.DataFrame({
+            'Activo': ['DXY', 'VIX', 'S&P 500', 'Nasdaq', 'Oro', 'Bono 10Y'],
+            'Precio': [macro['dxy']['price'], macro['vix']['price'],
+                       macro['sp500']['price'], macro['nasdaq']['price'],
+                       macro['oro']['price'], macro['bond10y']['price']],
+            'Cambio %': [macro['dxy']['change_pct'], macro['vix']['change_pct'],
+                         macro['sp500']['change_pct'], macro['nasdaq']['change_pct'],
+                         macro['oro']['change_pct'], macro['bond10y']['change_pct']]
+        })
+        df_macro['Cambio %'] = df_macro['Cambio %'].apply(lambda x: f"{x:+.2f}%")
+        st.dataframe(df_macro, use_container_width=True, hide_index=True)
+
+else:
+    st.info("ℹ️ No se pudieron obtener datos macro (DXY/VIX). Verifica tu conexión a internet.")
+
+# ───────────────────────────────────────────────────────────────────
 #  BANK CARDS (selector)
-# ────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────
 cols = st.columns(6)
 for i, (k, b) in enumerate(data.items()):
     with cols[i]:
@@ -316,30 +542,30 @@ with tab1:
             """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════
-#  TAB 2 · TASAS HISTÓRICAS (CORREGIDO: ORDEN CRONOLÓGICO)
+#  TAB 2 · TASAS HISTÓRICAS
 # ══════════════════════════════════════════════════════
 with tab2:
     st.markdown('<div class="section-label">▪ EVOLUCIÓN HISTÓRICA DE TASAS — TODOS LOS BANCOS CENTRALES</div>', unsafe_allow_html=True)
 
     fig = go.Figure()
+    from datetime import datetime
 
-    # Recolectar todas las fechas únicas de todos los bancos
-    todas_fechas = set()
-    for b in data.values():
-        for r in b.get("rates", []):
-            todas_fechas.add(r["date"])
-    
-    # Ordenar las fechas usando la función auxiliar (definida al inicio)
-    fechas_ordenadas = sorted(list(todas_fechas), key=fecha_a_key)
+    def parse_month_year(date_str):
+        meses = {"Ene":"Jan","Feb":"Feb","Mar":"Mar","Abr":"Apr","May":"May","Jun":"Jun",
+                 "Jul":"Jul","Ago":"Aug","Sep":"Sep","Oct":"Oct","Nov":"Nov","Dic":"Dec"}
+        for es, en in meses.items():
+            date_str = date_str.replace(es, en)
+        try:
+            return datetime.strptime(date_str, "%b-%y")
+        except:
+            return datetime(1900, 1, 1)
 
     for k, b in data.items():
         rates = b.get("rates", [])
-        if not rates:
-            continue
-        # Ordenar las tasas del banco individual también cronológicamente
-        rates_ordenadas = sorted(rates, key=lambda x: fecha_a_key(x["date"]))
-        dates = [r["date"] for r in rates_ordenadas]
-        vals  = [r["r"] for r in rates_ordenadas]
+        if not rates: continue
+        rates_sorted = sorted(rates, key=lambda x: parse_month_year(x["date"]))
+        dates = [r["date"] for r in rates_sorted]
+        vals  = [r["r"] for r in rates_sorted]
         fig.add_trace(go.Scatter(
             x=dates, y=vals, name=k, mode="lines+markers",
             line=dict(color=BANK_COLORS.get(k, "#fff"), width=3),
@@ -353,28 +579,24 @@ with tab2:
         paper_bgcolor="#0d1117", plot_bgcolor="#0d1117",
         font=dict(family="JetBrains Mono", color="#e2e8f0", size=11),
         xaxis=dict(
-            gridcolor="#1f2937",
-            tickangle=-30,
-            tickfont=dict(size=10),
-            title="Fecha",
+            gridcolor="#1f2937", tickangle=-30, tickfont=dict(size=10), title="Fecha",
             type="category",
             categoryorder="array",
-            categoryarray=fechas_ordenadas
+            categoryarray=sorted(set([r["date"] for b in data.values() for r in b.get("rates",[])]), key=parse_month_year)
         ),
         yaxis=dict(gridcolor="#1f2937", ticksuffix="%", tickfont=dict(size=10), title="Tasa (%)"),
         legend=dict(bgcolor="#0d1117", bordercolor="#1f2937", borderwidth=1,
                     font=dict(size=11), orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
         margin=dict(l=40, r=40, t=60, b=80), height=450, hovermode="x unified"
     )
-    st.plotly_chart(fig, width='stretch')
+    st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("**COMPARATIVA TASAS — CICLO ACTUAL**", unsafe_allow_html=False)
     cols3 = st.columns(6)
     for i, (k, b) in enumerate(data.items()):
         with cols3[i]:
             rates = b.get("rates", [])
-            if not rates:
-                continue
+            if not rates: continue
             vals = [r["r"] for r in rates]
             mn, mx = min(vals), max(vals)
             cur = b["currentRate"]
@@ -452,11 +674,9 @@ with tab3:
     rates = bank.get("rates", [])
     if rates:
         st.markdown(f'<div class="section-label">HISTORIAL DE TASA — {sel}</div>', unsafe_allow_html=True)
-        # Ordenar también el mini gráfico
-        rates_ordenadas = sorted(rates, key=lambda x: fecha_a_key(x["date"]))
         fig2 = go.Figure()
         fig2.add_trace(go.Scatter(
-            x=[r["date"] for r in rates_ordenadas], y=[r["r"] for r in rates_ordenadas],
+            x=[r["date"] for r in rates], y=[r["r"] for r in rates],
             mode="lines+markers", line=dict(color=color, width=2, shape="hv"),
             marker=dict(size=5, color=color), name=sel,
             hovertemplate="%{x}: %{y:.2f}%<extra></extra>"
@@ -469,7 +689,7 @@ with tab3:
             yaxis=dict(gridcolor="#1f2937", showline=False, ticksuffix="%"),
             margin=dict(l=20, r=20, t=10, b=20), height=200, showlegend=False,
         )
-        st.plotly_chart(fig2, width='stretch')
+        st.plotly_chart(fig2, use_container_width=True)
 
 # ────────────────────────────────────────────────────────
 #  FOOTER
@@ -478,7 +698,7 @@ st.markdown("""
 <div style="margin-top:24px;padding-top:16px;border-top:1px solid #1f2937;
             display:flex;justify-content:space-between;align-items:center">
   <span style="font-size:10px;color:#374151;font-family:monospace">
-    Fuentes: FRED API · ECB SDW · World Bank · Datos_Macro1.xlsm
+    Fuentes: FRED API · ECB SDW · World Bank · Yahoo Finance (DXY/VIX/SP500/Nasdaq/Oro/Bono)
   </span>
   <span style="font-size:10px;color:#374151;font-family:monospace">
     MacroVision © 2026
