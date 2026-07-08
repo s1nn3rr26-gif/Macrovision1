@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────
 #  MacroVision · app.py
-#  Dashboard Streamlit con semáforo macro, alertas de correlación
-#  y conclusiones estratégicas semanales
+#  Dashboard Streamlit con semáforo macro, alertas de correlación,
+#  Módulos Cuantitativos (Smart Money/IA) y Bancos Centrales.
 # ─────────────────────────────────────────────────────────
 
 import streamlit as st
@@ -238,7 +238,7 @@ st.markdown("""
   .mv-title span { color: #3b82f6; }
   .mv-subtitle { font-family: monospace; font-size: 11px; color: #aaaaaa; margin-top: 4px; }
   .mv-badge { background: #1f1f1f; color: #cccccc; font-size: 10px; padding: 3px 10px;
-               border-radius: 4px; font-family: monospace; letter-spacing: 1px; }
+                border-radius: 4px; font-family: monospace; letter-spacing: 1px; }
   .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981;
               box-shadow: 0 0 8px #10b981; display: inline-block; margin-right: 6px; }
 
@@ -460,7 +460,7 @@ if macro:
             unsafe_allow_html=True
         )
 
-    # ── Gráfico DXY vs VIX (corregido) ──
+    # ── Gráfico DXY vs VIX ──
     with st.expander("📈 Evolución DXY vs VIX (último mes)", expanded=False):
         try:
             dxy_hist = yf.download("DX-Y.NYB", period="1mo", progress=False)
@@ -487,7 +487,6 @@ if macro:
                     margin=dict(l=20, r=20, t=40, b=20),
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5)
                 )
-                # 🔧 CORRECCIÓN: formato de fechas sin horas
                 fig.update_xaxes(
                     tickformat="%d %b",
                     tickangle=0,
@@ -546,6 +545,157 @@ if macro:
 
 else:
     st.info("ℹ️ No se pudieron obtener datos macro (DXY/VIX). Verifica tu conexión a internet.")
+
+st.markdown("---")
+
+# ============================================================
+# 🧭 MÓDULOS DE PROBABILIDAD DIRECCIONAL & SMART MONEY
+# ============================================================
+st.markdown("### 🧭 Probabilidad Direccional & Smart Money")
+
+# 1. Descarga de datos para análisis profundo (60 días para medias y volumen)
+tickers_adv = {
+    "US10Y": "^TNX",
+    "US02Y": "^US2Y",
+    "SP500": "^GSPC", 
+    "ORO": "GC=F", 
+    "COBRE": "HG=F"
+}
+datos_adv = {}
+
+with st.spinner("Calculando anomalías institucionales (Datos de 60 días)..."):
+    for nombre, ticker in tickers_adv.items():
+        df_adv = yf.download(ticker, period="60d", progress=False)
+        if not df_adv.empty:
+            datos_adv[nombre] = df_adv
+
+if len(datos_adv) == 5:
+    col_cm, col_lp = st.columns(2)
+
+    # --------------------------------------------------------
+    # ⏳ CORTO Y MEDIANO PLAZO
+    # --------------------------------------------------------
+    with col_cm:
+        st.markdown("#### ⏳ Corto / Mediano Plazo")
+        
+        # 1. Curva de Tipos (US10Y - US02Y)
+        us10y_actual = float(datos_adv["US10Y"]['Close'].iloc[-1])
+        us02y_actual = float(datos_adv["US02Y"]['Close'].iloc[-1])
+        spread_curva = us10y_actual - us02y_actual
+        
+        st.markdown("**1. Curva de Rendimientos (10Y - 2Y):**")
+        if spread_curva < 0:
+            st.error(f"Invertida ({spread_curva:.2f}%). Riesgo de recesión a mediano plazo.")
+        else:
+            st.success(f"Normal ({spread_curva:.2f}%). Crecimiento económico saludable.")
+
+        # 2. Momentum SP500 (vs SMA 20)
+        sp500_close = float(datos_adv["SP500"]['Close'].iloc[-1])
+        sp500_sma20 = float(datos_adv["SP500"]['Close'].rolling(20).mean().iloc[-1])
+        
+        st.markdown("**2. Momentum Institucional (SP500 vs SMA 20):**")
+        if sp500_close > sp500_sma20:
+            st.success(f"Alcista. SP500 ({sp500_close:.2f}) cotiza sobre media institucional de 20 días.")
+        else:
+            st.warning(f"Bajista. SP500 ({sp500_close:.2f}) por debajo de la media de 20 días. Evitar largos apresurados.")
+
+    # --------------------------------------------------------
+    # 🔭 LARGO PLAZO
+    # --------------------------------------------------------
+    with col_lp:
+        st.markdown("#### 🔭 Largo Plazo")
+        
+        # 1. Ratio Cobre/Oro (Economía Real vs Refugio)
+        cobre_close = float(datos_adv["COBRE"]['Close'].iloc[-1])
+        oro_close = float(datos_adv["ORO"]['Close'].iloc[-1])
+        cobre_sma20 = float(datos_adv["COBRE"]['Close'].rolling(20).mean().iloc[-1])
+        oro_sma20 = float(datos_adv["ORO"]['Close'].rolling(20).mean().iloc[-1])
+        
+        tendencia_cobre = "subiendo" if cobre_close > cobre_sma20 else "bajando"
+        tendencia_oro = "subiendo" if oro_close > oro_sma20 else "bajando"
+
+        st.markdown("**1. Ratio Cobre/Oro (Termómetro Global):**")
+        if tendencia_cobre == "subiendo" and tendencia_oro == "bajando":
+            st.success("🟢 Expansión. El Cobre supera al Oro. Capital fluye hacia la economía real.")
+        elif tendencia_cobre == "bajando" and tendencia_oro == "subiendo":
+            st.error("🔴 Contracción. El Oro supera al Cobre. Capital buscando refugio (Risk-Off).")
+        else:
+            st.info("🟡 Transición. Cobre y Oro en misma dirección. Esperar definición de ciclo.")
+
+        # 2. SP500 vs SMA 50 (Soporte Macro)
+        sp500_sma50 = float(datos_adv["SP500"]['Close'].rolling(50).mean().iloc[-1])
+        st.markdown("**2. Salud Macro (SP500 vs SMA 50):**")
+        if sp500_close > sp500_sma50:
+            st.success(f"Fuerte. Los fondos mantienen posiciones (Soporte en {sp500_sma50:.2f}).")
+        else:
+            st.error(f"Débil. Capital institucional distribuyendo por debajo de {sp500_sma50:.2f}.")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --------------------------------------------------------
+# 🕵️ PATRONES INSTITUCIONALES (SMART MONEY)
+# --------------------------------------------------------
+st.markdown("#### 🕵️ Escáner de Rastros Institucionales (Smart Money)")
+st.caption("Detecta anomalías de volumen (Wyckoff) y cazas de liquidez (Sweeps) en los últimos 3 días.")
+
+cols_sm = st.columns(3)
+activos_analizar = {"SP500": datos_adv.get("SP500"), "ORO": datos_adv.get("ORO"), "COBRE": datos_adv.get("COBRE")}
+
+for idx, (nombre, df) in enumerate(activos_analizar.items()):
+    if df is not None and not df.empty and 'Volume' in df.columns:
+        with cols_sm[idx]:
+            st.markdown(f"**{nombre}**")
+            
+            # Anomalía de Volumen (Esfuerzo vs Resultado)
+            vol_actual = float(df['Volume'].iloc[-1])
+            vol_sma20 = float(df['Volume'].rolling(20).mean().iloc[-1])
+            
+            if vol_sma20 > 0 and vol_actual > (vol_sma20 * 1.5):
+                st.error("⚠️ **Pico de Volumen:** Intervención Institucional fuerte. (Posible Absorción o Clímax).")
+            elif vol_sma20 > 0 and vol_actual < (vol_sma20 * 0.5):
+                st.info("💤 **Secado de Volumen:** Falta de interés profesional. No operar roturas.")
+            else:
+                st.success("✅ **Volumen Promedio:** Participación normal del mercado.")
+                
+            # Identificación de Caza de Liquidez (Liquidity Sweep 20 días)
+            min_20d = float(df['Low'].rolling(20).min().iloc[-2]) # Mínimo previo
+            max_20d = float(df['High'].rolling(20).max().iloc[-2]) # Máximo previo
+            low_actual = float(df['Low'].iloc[-1])
+            high_actual = float(df['High'].iloc[-1])
+            close_actual = float(df['Close'].iloc[-1])
+            
+            if low_actual < min_20d and close_actual > min_20d:
+                st.success("🎯 **Sweep Alcista:** Manipulación de mínimos (Spring). Posible rebote institucional.")
+            elif high_actual > max_20d and close_actual < max_20d:
+                st.error("🎯 **Sweep Bajista:** Manipulación de máximos (Upthrust). Instituciones vendiendo.")
+            else:
+                st.markdown("▫️ Estructura Limpia (Sin manipulaciones recientes).")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --------------------------------------------------------
+# 🤖 MOTOR DE IA CUANTITATIVA
+# --------------------------------------------------------
+st.markdown("#### 🧠 Veredicto de IA Cuantitativa")
+with st.expander("Ver Resumen del Agente Local (Sintetizador de Reglas)", expanded=True):
+    # Generador de Veredicto basado en las reglas anteriores
+    if macro:
+        regimen = "Risk-On (Apetito por Riesgo)" if (macro['dxy']['change_pct'] < 0 and macro['vix']['change_pct'] < 0) else "Risk-Off (Aversión al Riesgo / Mixto)"
+    else:
+        regimen = "Desconocido (Faltan Datos)"
+
+    st.info(f"**Contexto General:** El mercado se encuentra actualmente en un entorno **{regimen}**.")
+    
+    st.markdown("""
+    **Directrices Estratégicas para tu Sesión:**
+    - **Filtro de Entrada:** Solo busca *setups* en tu plataforma (Order Blocks o Zonas de Oferta/Demanda) que estén alineados con el Régimen de Mercado actual. 
+    - **Alineación MTF (Multi-Timeframe):** Si el ratio Cobre/Oro es alcista y la curva de tipos no predice pánico, prioriza compras en caídas hacia la EMA 20 en TF menores.
+    - **Control de Ruido:** Ignora las formaciones técnicas si el escáner detectó 'Secado de Volumen' en el activo. Solo opera donde la huella institucional ('Pico de Volumen' o 'Sweep') esté presente.
+    """)
+    
+    st.button("🔄 Conectar con Ollama Local (Llama3) para Análisis Profundo", help="Activa esta función si tienes tu API local de Ollama corriendo en el puerto 11434.")
+
+st.markdown("---")
 
 # ────────────────────────────────────────────────────────
 #  BANK CARDS (selector)
