@@ -1,8 +1,7 @@
 # ─────────────────────────────────────────────────────────
-#  MacroVision · app.py (VERSIÓN DEFINITIVA SIN ERRORES)
-#  Dashboard Macroeconómico con IA, Correlaciones,
-#  Análisis Técnico y Memoria del Agente.
-#  No requiere importar ollama (se ejecuta como subproceso).
+#  MacroVision · app.py (VERSIÓN DEFINITIVA FUSIONADA)
+#  Dashboard Macroeconómico con Semáforo Macro, Alertas,
+#  Correlaciones, Análisis de Activos y Memoria del Agente IA.
 # ─────────────────────────────────────────────────────────
 
 import streamlit as st
@@ -26,10 +25,10 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Auto-refresh cada 4 horas
+# Auto-refresh cada 4 horas (opcional)
 st.markdown('<meta http-equiv="refresh" content="14400">', unsafe_allow_html=True)
 
-# ── CSS PROFESIONAL ────────────────────────────────────────
+# ── CSS PROFESIONAL (fusionado) ───────────────────────────
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -239,6 +238,10 @@ st.markdown("""
         color: #ffffff;
         border-bottom: 2px solid #3b82f6;
     }
+
+    .risk-on { background: #10b98122; border: 1px solid #10b98144; color: #10b981; padding: 12px 20px; border-radius: 8px; font-weight: 600; }
+    .risk-off { background: #ef444422; border: 1px solid #ef444444; color: #ef4444; padding: 12px 20px; border-radius: 8px; font-weight: 600; }
+    .risk-mixed { background: #f59e0b22; border: 1px solid #f59e0b44; color: #f59e0b; padding: 12px 20px; border-radius: 8px; font-weight: 600; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -333,6 +336,7 @@ def load_ai_memory():
             return json.load(f)
     return []
 
+# ── FUNCIONES DE ALERTAS Y CONCLUSIONES (MEJORADAS) ──────
 def generar_alertas(macro_data):
     """Genera alertas automáticas basadas en condiciones macro."""
     if not macro_data:
@@ -340,20 +344,87 @@ def generar_alertas(macro_data):
     alertas = []
     dxy = macro_data.get('dxy', {})
     vix = macro_data.get('vix', {})
+    sp500 = macro_data.get('sp500', {})
     nasdaq = macro_data.get('nasdaq', {})
+    oro = macro_data.get('oro', {})
     bond = macro_data.get('bond10y', {})
 
     if dxy.get('change_pct', 0) > 0 and vix.get('change_pct', 0) > 0:
-        alertas.append({"m": "🔴 DXY y VIX al alza → Riesgo-off extremo.", "c": "rojo"})
+        alertas.append({"m": "🔴 DXY y VIX al alza → Aversión al riesgo (Risk-Off).", "c": "rojo"})
     if dxy.get('change_pct', 0) < 0 and vix.get('change_pct', 0) < 0:
-        alertas.append({"m": "🟢 DXY y VIX a la baja → Apetito por riesgo.", "c": "verde"})
+        alertas.append({"m": "🟢 DXY y VIX a la baja → Apetito por riesgo (Risk-On).", "c": "verde"})
+    if dxy.get('change_pct', 0) > 0 and oro.get('change_pct', 0) < 0:
+        alertas.append({"m": "📉 Dólar fuerte presiona al oro.", "c": "naranja"})
+    if dxy.get('change_pct', 0) < 0 and oro.get('change_pct', 0) > 0:
+        alertas.append({"m": "📈 Dólar débil impulsa al oro.", "c": "verde"})
     if nasdaq.get('change_pct', 0) > 0 and vix.get('change_pct', 0) > 0:
-        alertas.append({"m": "⚠️ Nasdaq y VIX suben juntos → Divergencia peligrosa.", "c": "rojo"})
+        alertas.append({"m": "⚠️ Nasdaq sube pero VIX sube → Divergencia peligrosa.", "c": "rojo"})
     if bond.get('change_pct', 0) > 0 and dxy.get('change_pct', 0) > 0:
         alertas.append({"m": "📈 Tasas y dólar fuertes → Presión sobre tecnológicas.", "c": "naranja"})
+    if bond.get('change_pct', 0) < 0 and oro.get('change_pct', 0) > 0:
+        alertas.append({"m": "📉 Tasas a la baja y oro al alza → Refugio en metales.", "c": "verde"})
     return alertas
 
-# ── FUNCIONES DE EJECUCIÓN CORREGIDAS ────────────────────
+def generar_conclusion_estrategica(macro_data):
+    """Genera recomendación semanal basada en el régimen."""
+    if not macro_data:
+        return {"regimen": "SIN DATOS", "oportunidades": ["No hay datos."], "riesgos": ["No hay datos."], "recomendacion": "Verifica conexión."}
+
+    dxy = macro_data.get('dxy', {})
+    vix = macro_data.get('vix', {})
+    sp500 = macro_data.get('sp500', {})
+    nasdaq = macro_data.get('nasdaq', {})
+    oro = macro_data.get('oro', {})
+    bond = macro_data.get('bond10y', {})
+
+    dxy_up = dxy.get('change_pct', 0) > 0
+    vix_up = vix.get('change_pct', 0) > 0
+    if dxy_up and vix_up:
+        regimen = "🔴 AVERSIÓN AL RIESGO (Risk-Off)"
+    elif not dxy_up and not vix_up:
+        regimen = "🟢 APETITO POR RIESGO (Risk-On)"
+    else:
+        regimen = "🟡 MIXTO (Divergencia)"
+
+    oportunidades = []
+    riesgos = []
+
+    if dxy.get('change_pct', 0) < 0 and oro.get('change_pct', 0) > 0:
+        oportunidades.append("📈 Dólar débil impulsa el oro → Largos en metales preciosos.")
+    if vix.get('change_pct', 0) < 0 and sp500.get('change_pct', 0) > 0:
+        oportunidades.append("📊 VIX a la baja y S&P al alza → Favorable para índices.")
+    if bond.get('change_pct', 0) < 0 and oro.get('change_pct', 0) > 0:
+        oportunidades.append("📉 Tasas a la baja y oro al alza → Bonos y metales como refugio.")
+
+    if dxy.get('change_pct', 0) > 0 and oro.get('change_pct', 0) < 0:
+        riesgos.append("📉 Dólar fuerte presiona al oro.")
+    if vix.get('change_pct', 0) > 0 and sp500.get('change_pct', 0) < 0:
+        riesgos.append("📉 VIX al alza y S&P a la baja → Aumento de miedo.")
+    if nasdaq.get('change_pct', 0) > 0 and vix.get('change_pct', 0) > 0:
+        riesgos.append("⚠️ Nasdaq sube pero VIX sube → Posible corrección en tecnológicas.")
+    if bond.get('change_pct', 0) > 0 and dxy.get('change_pct', 0) > 0:
+        riesgos.append("📈 Tasas al alza y dólar fuerte → Presión sobre tecnológicas y deuda.")
+
+    if not oportunidades:
+        oportunidades.append("➡️ Sin señales claras de oportunidad. Mantener posiciones.")
+    if not riesgos:
+        riesgos.append("➡️ Sin riesgos extremos. Condiciones estables.")
+
+    if "APETITO POR RIESGO" in regimen:
+        recomendacion = "🟢 **Escenario favorable**: Aumentar exposición a activos de riesgo (acciones, commodities cíclicos). Buscar largos en índices."
+    elif "AVERSIÓN AL RIESGO" in regimen:
+        recomendacion = "🔴 **Escenario defensivo**: Reducir exposición a riesgo. Buscar refugio en oro, bonos y dólar."
+    else:
+        recomendacion = "🟡 **Escenario mixto**: Selección activa. No agregar riesgo de forma agresiva."
+
+    return {
+        "regimen": regimen,
+        "oportunidades": oportunidades,
+        "riesgos": riesgos,
+        "recomendacion": recomendacion
+    }
+
+# ── FUNCIONES DE EJECUCIÓN DE SCRIPTS ────────────────────
 def ejecutar_macro_fetch():
     """Ejecuta macro_fetch.py en el mismo directorio y captura errores."""
     try:
@@ -369,7 +440,6 @@ def ejecutar_macro_fetch():
         if resultado.returncode != 0:
             st.error(f"❌ Error en macro_fetch.py:\n```\n{resultado.stderr}\n```")
         else:
-            # Opcional: mostrar salida en consola (no en el dashboard)
             print(resultado.stdout)
         return resultado.returncode == 0
     except subprocess.TimeoutExpired:
@@ -452,21 +522,81 @@ with col_btn2:
             else:
                 st.error("❌ Error al ejecutar la IA. Revisa los mensajes anteriores.")
 
-# ── MÉTRICAS RÁPIDAS ──────────────────────────────────────
+# ── SEMÁFORO MACRO Y ALERTAS ──────────────────────────────
 if macro:
+    # Métricas rápidas (3 columnas)
     c1, c2, c3 = st.columns(3)
     c1.metric("Dólar (DXY)", f"{macro['dxy']['price']:.2f}", f"{macro['dxy']['change_pct']:.2f}%", delta_color="inverse")
     c2.metric("Miedo (VIX)", f"{macro['vix']['price']:.2f}", f"{macro['vix']['change_pct']:.2f}%", delta_color="inverse")
     c3.metric("Bono US 10Y", f"{macro['bond10y']['price']:.2f}%", f"{macro['bond10y']['change_pct']:.2f}%")
 
-alertas = generar_alertas(macro)
-if alertas:
-    with st.container():
-        st.markdown("#### ⚡ Alertas Automáticas")
-        for a in alertas:
-            st.markdown(f'<div class="alert-card alert-{a["c"]}">{a["m"]}</div>', unsafe_allow_html=True)
+    # Alertas automáticas
+    alertas = generar_alertas(macro)
+    if alertas:
+        with st.container():
+            st.markdown("#### ⚡ Alertas Automáticas")
+            for a in alertas:
+                st.markdown(f'<div class="alert-card alert-{a["c"]}">{a["m"]}</div>', unsafe_allow_html=True)
 
-# ── TABS PRINCIPALES ──────────────────────────────────────
+    # Régimen y conclusiones
+    conclusion = generar_conclusion_estrategica(macro)
+    st.markdown(f"**Régimen actual:** {conclusion['regimen']}")
+    with st.expander("🟢 Oportunidades detectadas", expanded=True):
+        for op in conclusion['oportunidades']:
+            st.markdown(f"- {op}")
+    with st.expander("🔴 Riesgos a vigilar", expanded=True):
+        for ri in conclusion['riesgos']:
+            st.markdown(f"- {ri}")
+    st.markdown(f"**📌 Recomendación semanal:** {conclusion['recomendacion']}")
+
+    # Gráfico DXY vs VIX (últimos 3 meses)
+    st.markdown("### 📈 Evolución DXY vs VIX")
+    try:
+        raw_dxy = yf.download("DX-Y.NYB", period="3mo", progress=False)
+        raw_vix = yf.download("^VIX", period="3mo", progress=False)
+        if not raw_dxy.empty and not raw_vix.empty:
+            s_dxy = raw_dxy['Close'].iloc[:, 0] if isinstance(raw_dxy['Close'], pd.DataFrame) else raw_dxy['Close']
+            s_vix = raw_vix['Close'].iloc[:, 0] if isinstance(raw_vix['Close'], pd.DataFrame) else raw_vix['Close']
+            s_dxy.index = s_dxy.index.tz_localize(None)
+            s_vix.index = s_vix.index.tz_localize(None)
+            df_merged = pd.concat([s_dxy, s_vix], axis=1, keys=['DXY', 'VIX']).dropna()
+
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=df_merged.index, y=df_merged['DXY'], name="DXY", line=dict(color='#3b82f6', width=2)))
+            fig.add_trace(go.Scatter(x=df_merged.index, y=df_merged['VIX'], name="VIX", line=dict(color='#ef4444', width=2), yaxis="y2"))
+            fig.update_layout(
+                yaxis=dict(title="DXY", gridcolor="#1f2937", tickfont=dict(color='#3b82f6')),
+                yaxis2=dict(title="VIX", overlaying="y", side="right", gridcolor="rgba(0,0,0,0)", tickfont=dict(color='#ef4444')),
+                paper_bgcolor="#0d1117", plot_bgcolor="#0d1117", font=dict(color="#e2e8f0"),
+                height=350, margin=dict(l=20, r=20, t=20, b=20),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+                hovermode="x unified"
+            )
+            fig.update_xaxes(tickformat="%d %b", gridcolor="#1f2937")
+            st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.warning(f"No se pudo renderizar el gráfico: {e}")
+
+    # Tabla de variaciones diarias
+    with st.expander("📊 Tabla de variaciones diarias", expanded=False):
+        df_macro = pd.DataFrame({
+            'Activo': ['DXY', 'VIX', 'S&P 500', 'Nasdaq', 'Oro', 'Bono 10Y'],
+            'Precio': [macro['dxy']['price'], macro['vix']['price'],
+                       macro['sp500']['price'], macro['nasdaq']['price'],
+                       macro['oro']['price'], macro['bond10y']['price']],
+            'Cambio %': [macro['dxy']['change_pct'], macro['vix']['change_pct'],
+                         macro['sp500']['change_pct'], macro['nasdaq']['change_pct'],
+                         macro['oro']['change_pct'], macro['bond10y']['change_pct']]
+        })
+        df_macro['Cambio %'] = df_macro['Cambio %'].apply(lambda x: f"{x:+.2f}%")
+        st.dataframe(df_macro, use_container_width=True, hide_index=True)
+
+else:
+    st.info("ℹ️ No se pudieron obtener datos macro (DXY/VIX). Verifica tu conexión a internet.")
+
+# ─────────────────────────────────────────────────────────────
+#  TABS PRINCIPALES (5 TABS)
+# ─────────────────────────────────────────────────────────────
 tabs = st.tabs([
     "📊 Sentimiento & Tasas",
     "🔍 Indicadores",
@@ -476,17 +606,21 @@ tabs = st.tabs([
 ])
 
 # ============================================================
-# TAB 1: SENTIMIENTO & TASAS
+# TAB 1: SENTIMIENTO & TASAS (fusionado)
 # ============================================================
 with tabs[0]:
-    # Tarjetas de bancos centrales
     st.markdown("### 🏦 Tipos de Interés de los Bancos Centrales")
     cols = st.columns(6)
     for i, (k, b) in enumerate(data.items()):
         with cols[i]:
-            ov = "BULLISH" if list(b.get("sentiment", {}).values()).count("BULLISH") > 2 else "NEUTRO"
+            # Sentimiento general
+            sent = b.get("sentiment", {})
+            bulls = list(sent.values()).count("BULLISH")
+            bears = list(sent.values()).count("BEARISH")
+            ov = "BULLISH" if bulls > bears else "BEARISH" if bears > bulls else "NEUTRO"
             color = BANK_COLORS.get(k, "#ffffff")
             selected_class = " selected" if st.session_state.selected == k else ""
+
             st.markdown(f"""
             <div class="bank-card{selected_class}" style="border-color: {color}30;">
                 <div class="bank-card-top" style="background:{color};"></div>
@@ -501,41 +635,9 @@ with tabs[0]:
                 st.rerun()
 
     st.markdown("---")
-
-    # Gráfico DXY vs VIX (últimos 3 meses)
-    st.markdown("### 📈 Evolución DXY vs VIX")
-    if macro:
-        try:
-            raw_dxy = yf.download("DX-Y.NYB", period="3mo", progress=False)
-            raw_vix = yf.download("^VIX", period="3mo", progress=False)
-            if not raw_dxy.empty and not raw_vix.empty:
-                s_dxy = raw_dxy['Close'].iloc[:, 0] if isinstance(raw_dxy['Close'], pd.DataFrame) else raw_dxy['Close']
-                s_vix = raw_vix['Close'].iloc[:, 0] if isinstance(raw_vix['Close'], pd.DataFrame) else raw_vix['Close']
-                s_dxy.index = s_dxy.index.tz_localize(None)
-                s_vix.index = s_vix.index.tz_localize(None)
-                df_merged = pd.concat([s_dxy, s_vix], axis=1, keys=['DXY', 'VIX']).dropna()
-
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(x=df_merged.index, y=df_merged['DXY'], name="DXY", line=dict(color='#3b82f6', width=2)))
-                fig.add_trace(go.Scatter(x=df_merged.index, y=df_merged['VIX'], name="VIX", line=dict(color='#ef4444', width=2), yaxis="y2"))
-                fig.update_layout(
-                    yaxis=dict(title="DXY", gridcolor="#1f2937", tickfont=dict(color='#3b82f6')),
-                    yaxis2=dict(title="VIX", overlaying="y", side="right", gridcolor="rgba(0,0,0,0)", tickfont=dict(color='#ef4444')),
-                    paper_bgcolor="#0d1117", plot_bgcolor="#0d1117", font=dict(color="#e2e8f0"),
-                    height=350, margin=dict(l=20, r=20, t=20, b=20),
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
-                    hovermode="x unified"
-                )
-                fig.update_xaxes(tickformat="%d %b", gridcolor="#1f2937")
-                st.plotly_chart(fig, use_container_width=True)
-        except Exception as e:
-            st.warning(f"No se pudo renderizar el gráfico: {e}")
-
-    st.markdown("---")
-
-    # ── GRÁFICO DE TASAS CON SOPORTE PARA MESES EN ESPAÑOL ──
     st.markdown("### 📉 Evolución de Tipos de Interés (Histórico)")
 
+    # Función para parsear fechas en español
     MESES_ESP = {
         "ene": 1, "feb": 2, "mar": 3, "abr": 4, "may": 5, "jun": 6,
         "jul": 7, "ago": 8, "sep": 9, "oct": 10, "nov": 11, "dic": 12
@@ -607,7 +709,7 @@ with tabs[1]:
         st.info("No hay indicadores disponibles para este banco central.")
 
 # ============================================================
-# TAB 3: CORRELACIONES (AMPLIADA)
+# TAB 3: CORRELACIONES
 # ============================================================
 with tabs[2]:
     st.markdown("### 🔗 Matriz de Correlación Macroeconómica (1 Año)")
@@ -712,6 +814,7 @@ with tabs[4]:
     st.markdown("---")
     st.markdown("### 📋 Prompt para IA Externa (ChatGPT / Ollama)")
     if macro:
+        # Detección de anomalías (Smart Money)
         anomalias = []
         try:
             tickers_extra = {
