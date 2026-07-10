@@ -1,18 +1,17 @@
 # ─────────────────────────────────────────────────────────
 #  MacroVision · config.py
-#  Lee FRED_API_KEY desde variable de entorno (Streamlit Cloud)
+#  Archivo de configuración central
 # ─────────────────────────────────────────────────────────
 
 import os
 
-# Intenta obtener la clave desde las variables de entorno
-# En Streamlit Cloud, las secrets se inyectan como variables de entorno automáticamente
-FRED_API_KEY = os.getenv("FRED_API_KEY", "")
+# 1. Tu llave de la FRED
+FRED_API_KEY = "5b53bdf5fe99ed21dc2af47440603b37"
 
-if not FRED_API_KEY:
+if not FRED_API_KEY or FRED_API_KEY == "TU_LLAVE_AQUI":
     print("⚠️ ADVERTENCIA: FRED_API_KEY no está configurada. Las actualizaciones de datos fallarán.")
 
-# ── FRED series para FED (USA) ────────────────────────────
+# 2. FRED series para FED (USA)
 FRED_SERIES = {
     "FEDFUNDS":           ("Tasa FED",              "TASAS"),
     "CPIAUCSL":           ("CPI y/y",               "INFLACIÓN"),
@@ -25,13 +24,13 @@ FRED_SERIES = {
     "PERMIT":             ("Building Permits",       "INMOBILIARIO"),
 }
 
-# ── Bancos centrales: tasas vía fuentes oficiales ─────────
+# 3. Bancos centrales urls
 BANK_RATE_URLS = {
     "BCE": "https://data-api.ecb.europa.eu/service/data/ICP/M.U2.EUR.4F.DP00?format=jsondata&lastNObservations=1",
     "BOE": "https://www.bankofengland.co.uk/boeapps/database/fromshowcolumns.asp?Travel=NIxSUx&FromSeries=1&ToSeries=50&DAT=RNG&FD=1&FM=Jan&FY=2024&TD=31&TM=Dec&TY=2026&VFD=Y&html.x=66&html.y=26&C=BYQ&Filter=N",
 }
 
-# ── World Bank: indicadores por código país ───────────────
+# 4. World bank
 WORLD_BANK_SERIES = {
     "FP.CPI.TOTL.ZG":    ("CPI Inflation y/y",     "INFLACIÓN"),
     "NY.GDP.MKTP.KD.ZG":  ("GDP Growth y/y",        "CRECIMIENTO"),
@@ -41,14 +40,14 @@ WORLD_BANK_SERIES = {
 
 WORLD_BANK_COUNTRIES = {
     "FED":  "US",
-    "BCE":  "XC",   # Euro Area
+    "BCE":  "XC",   
     "BOE":  "GB",
     "BOC":  "CA",
     "RBA":  "AU",
     "RBNZ": "NZ",
 }
 
-# ── Metadata visual (colores, flags) ─────────────────────
+# 5. Metadata visual
 BANK_META = {
     "FED":  {"name": "Federal Reserve",               "flag": "🇺🇸", "currency": "USD", "color": "#3b82f6"},
     "BCE":  {"name": "Banco Central Europeo",          "flag": "🇪🇺", "currency": "EUR", "color": "#8b5cf6"},
