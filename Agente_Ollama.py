@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────────────────
 #  MacroVision · agente_ollama.py
-#  Agente de IA local con MEMORIA HISTÓRICA
+#  Agente de IA local con MEMORIA HISTÓRICA + NARRATIVA
 # ─────────────────────────────────────────────────────────
 
 import json
@@ -10,6 +10,7 @@ from datetime import datetime
 
 ARCHIVO_DATOS = "macro_data.json"
 ARCHIVO_MEMORIA = "ai_memory.json"
+ARCHIVO_NARRATIVA = "narrativa.txt"   # Cambia a .md si lo prefieres
 
 def cargar_datos_macro():
     try:
@@ -29,6 +30,13 @@ def guardar_memoria(memoria):
     with open(ARCHIVO_MEMORIA, "w", encoding="utf-8") as f:
         json.dump(memoria, f, indent=4, ensure_ascii=False)
 
+def cargar_narrativa():
+    """Lee el archivo de narrativa (contexto adicional para la IA)."""
+    if os.path.exists(ARCHIVO_NARRATIVA):
+        with open(ARCHIVO_NARRATIVA, "r", encoding="utf-8") as f:
+            return f.read()
+    return None
+
 def generar_decision_agente(datos_macro, historial):
     if not datos_macro:
         return
@@ -42,11 +50,17 @@ def generar_decision_agente(datos_macro, historial):
     }
     contexto_str = json.dumps(resumen_datos, indent=2, ensure_ascii=False)
 
-    # Extraemos las últimas 3 decisiones para darle contexto de su propio pasado
+    # Memoria reciente
     memoria_reciente = historial[-3:] if len(historial) >= 3 else historial
     contexto_memoria = "\n".join([f"- {m['fecha']}: {m['decision']}" for m in memoria_reciente])
     if not contexto_memoria:
         contexto_memoria = "No hay historial previo. Esta es tu primera decisión."
+
+    # Cargar narrativa (si existe)
+    narrativa = cargar_narrativa()
+    contexto_narrativa = ""
+    if narrativa:
+        contexto_narrativa = f"\n\n[CONTEXTO ADICIONAL - NARRATIVA DEL USUARIO]\n{narrativa}\n"
 
     prompt_sistema = """
     Eres el Estratega Cuantitativo Jefe de MacroVision. Tu objetivo es emitir una señal de trading 
@@ -55,10 +69,18 @@ def generar_decision_agente(datos_macro, historial):
     Reglas de salida:
     1. INICIA con la palabra clave: [COMPRAR], [VENDER] o [ESPERAR].
     2. Proporciona una justificación técnica basada en los datos actuales y tu memoria reciente.
-    3. Evalúa si cambiaste de opinión respecto a tus decisiones anteriores.
+    3. Si se te proporciona una narrativa adicional del usuario, intégrala como contexto fundamental.
+    4. Evalúa si cambiaste de opinión respecto a tus decisiones anteriores.
     """
 
-    mensaje_usuario = f"MEMORIA DE TUS ÚLTIMAS DECISIONES:\n{contexto_memoria}\n\nDATOS MACROECONÓMICOS ACTUALES:\n{contexto_str}\n\nGenera tu señal ahora."
+    mensaje_usuario = f"""MEMORIA DE TUS ÚLTIMAS DECISIONES:
+{contexto_memoria}
+
+DATOS MACROECONÓMICOS ACTUALES:
+{contexto_str}
+{contexto_narrativa}
+
+Genera tu señal ahora."""
 
     print("🤖 Agente MacroVision analizando los mercados y consultando su memoria...\n")
 
