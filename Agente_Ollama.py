@@ -11,6 +11,9 @@ import yfinance as yf
 import ollama
 import warnings
 warnings.filterwarnings("ignore")
+import sys
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # ── CONFIGURACION ──────────────────────────────────────────
 # Modelo local de Ollama (cambia si usas otro, ej: "mistral", "phi3", "llama3.2")

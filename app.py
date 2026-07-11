@@ -503,7 +503,7 @@ def ejecutar_agente_ia():
             cwd=script_dir,
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=180
         )
         if resultado.returncode != 0:
             st.error(f"❌ Error en Agente_Ollama.py:\n```\n{resultado.stderr}\n```")
