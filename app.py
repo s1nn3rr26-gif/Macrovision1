@@ -448,12 +448,16 @@ def ejecutar_macro_fetch():
     except Exception as e:
         st.error(f"Excepción al ejecutar: {e}")
         return False
-
 def ejecutar_agente_ia():
-    """Ejecuta Agente_Ollama.py en el mismo directorio y captura errores."""
+    """Ejecuta Agente_Ollama.py si existe, y maneja errores de importación."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    script_path = os.path.join(script_dir, "Agente_Ollama.py")
+    
+    if not os.path.exists(script_path):
+        st.warning("⚠️ No se encontró el archivo Agente_Ollama.py. La funcionalidad de IA no está disponible.")
+        return False
+    
     try:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        script_path = os.path.join(script_dir, "Agente_Ollama.py")
         resultado = subprocess.run(
             [sys.executable, script_path],
             cwd=script_dir,
@@ -463,13 +467,16 @@ def ejecutar_agente_ia():
         )
         if resultado.returncode != 0:
             st.error(f"❌ Error en Agente_Ollama.py:\n```\n{resultado.stderr}\n```")
-        return resultado.returncode == 0
+            if "ModuleNotFoundError" in resultado.stderr:
+                st.info("💡 Asegúrate de tener instalada la librería `ollama` (pip install ollama) o revisa el script.")
+        else:
+            st.success("✅ IA ejecutada correctamente.")
+            return True
     except subprocess.TimeoutExpired:
         st.error("⏱️ El proceso de IA tardó demasiado. Asegúrate de que Ollama esté corriendo.")
-        return False
     except Exception as e:
         st.error(f"Excepción al ejecutar: {e}")
-        return False
+    return False
 
 # ── INICIALIZACIÓN DE ESTADO ──────────────────────────────
 if "selected" not in st.session_state:
@@ -537,6 +544,93 @@ if macro:
             st.markdown("#### ⚡ Alertas Automáticas")
             for a in alertas:
                 st.markdown(f'<div class="alert-card alert-{a["c"]}">{a["m"]}</div>', unsafe_allow_html=True)
+
+def evaluar_reglas(macro_data, reglas):
+    """
+    Evalúa las condiciones de reglas.json con los datos macro actuales.
+    Retorna una lista de alertas con mensajes específicos.
+    """
+    if not macro_data or not reglas:
+        return []
+
+    alertas_reglas = []
+    dxy = macro_data.get('dxy', {})
+    vix = macro_data.get('vix', {})
+    sp500 = macro_data.get('sp500', {})
+    oro = macro_data.get('oro', {})
+    cobre = macro_data.get('copper', {})  # Necesitarás añadir cobre a get_macro_data
+    # Si no tienes cobre, puedes omitir o añadirlo
+
+    return alertas_reglas
+
+def evaluar_reglas(macro_data, reglas):
+    """
+    Evalúa las condiciones de reglas.json con los datos macro actuales.
+    Retorna una lista de alertas con mensajes específicos.
+    """
+    if not macro_data or not reglas:
+        return []
+
+    alertas_reglas = []
+    dxy = macro_data.get('dxy', {})
+    vix = macro_data.get('vix', {})
+    sp500 = macro_data.get('sp500', {})
+    oro = macro_data.get('oro', {})
+    cobre = macro_data.get('copper', {})  # Necesitarás añadir cobre a get_macro_data
+    # Si no tienes cobre, puedes omitir o añadirlo
+
+    # Regla 1: DXY vs Oro
+    if dxy.get('change_pct', 0) > 1.0 and oro.get('change_pct', 0) < -2.0:
+        alertas_reglas.append({
+            "m": "📉 Regla DXY-Oro: DXY sube >1% y Oro cae >2% → Divergencia detectada. Esperar corrección en metales.",
+            "c": "naranja"
+        })
+
+    # Regla 2: VIX > 25 (aversión al riesgo)
+    if vix.get('price', 0) > 25:
+        alertas_reglas.append({
+            "m": f"🔴 VIX en {vix['price']:.1f} (>25) → Activación de Risk-Off. Rotar a coberturas (Oro, Bonos, DXY).",
+            "c": "rojo"
+        })
+
+    # Regla 3: Cobre cae >5% en 30 días (requiere histórico)
+    # Para simplificar, usamos cambio diario como proxy
+    if macro_data.get('copper', {}).get('change_pct', 0) < -5:
+        alertas_reglas.append({
+            "m": "📉 Cobre cae >5% → Señal de desaceleración global. Reducir exposición a cíclicos.",
+            "c": "rojo"
+        })
+
+    # Regla 4: SP500 por debajo de SMA 200 (requiere calcular)
+    # Si tienes histórico, puedes calcularlo. Por ahora, omitimos.
+
+    return alertas_reglas
+    # Regla 1: DXY vs Oro
+    if dxy.get('change_pct', 0) > 1.0 and oro.get('change_pct', 0) < -2.0:
+        alertas_reglas.append({
+            "m": "📉 Regla DXY-Oro: DXY sube >1% y Oro cae >2% → Divergencia detectada. Esperar corrección en metales.",
+            "c": "naranja"
+        })
+
+    # Regla 2: VIX > 25 (aversión al riesgo)
+    if vix.get('price', 0) > 25:
+        alertas_reglas.append({
+            "m": f"🔴 VIX en {vix['price']:.1f} (>25) → Activación de Risk-Off. Rotar a coberturas (Oro, Bonos, DXY).",
+            "c": "rojo"
+        })
+
+    # Regla 3: Cobre cae >5% en 30 días (requiere histórico)
+    # Para simplificar, usamos cambio diario como proxy
+    if macro_data.get('copper', {}).get('change_pct', 0) < -5:
+        alertas_reglas.append({
+            "m": "📉 Cobre cae >5% → Señal de desaceleración global. Reducir exposición a cíclicos.",
+            "c": "rojo"
+        })
+
+    # Regla 4: SP500 por debajo de SMA 200 (requiere calcular)
+    # Si tienes histórico, puedes calcularlo. Por ahora, omitimos.
+
+    return alertas_reglas
 
     # Régimen y conclusiones
     conclusion = generar_conclusion_estrategica(macro)

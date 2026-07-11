@@ -1,0 +1,40 @@
+{
+  "market_patterns": {
+    "dxy_gold_divergence": {
+      "trigger_condition": "dxy_5d_change > 0.01",
+      "expected_outcome": "gold_5d_change <= -0.02",
+      "risk_level": "Medium"
+    },
+    "vix_market_correction": {
+      "trigger_condition": "vix_daily_close > 25.0",
+      "expected_outcome": "spx_correction >= 0.05",
+      "timeframe_days": 30
+    },
+    "fomc_seasonality": {
+      "critical_months": ["June", "December"],
+      "expected_regime": "High Volatility USD"
+    },
+    "copper_macro_barometer": {
+      "trigger_condition": "copper_30d_change <= -0.05",
+      "expected_outcome": "global_pmi_deceleration",
+      "lag_days": 45
+    }
+  },
+  "trading_rules": {
+    "trend_filter": {
+      "asset": "SPX",
+      "condition": "price > sma_200",
+      "action_if_false": "Block Long Positions"
+    },
+    "risk_off_allocation": [
+      "XAUUSD",
+      "US_Treasuries",
+      "DXY"
+    ],
+    "risk_on_allocation": [
+      "Technology_AI",
+      "Energy",
+      "Small_Caps_IWM"
+    ]
+  }
+}
