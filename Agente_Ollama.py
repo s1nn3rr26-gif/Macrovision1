@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────
-#  Agente_Ollama.py - VERSIÓN LOCAL CON OLLAMA
+#  Agente_Ollama.py - VERSION LOCAL CON OLLAMA
 #  Estratega Jefe con Narrativa + Reglas de Trading
-#  Usa Ollama local (gratuito, sin límites)
+#  Usa Ollama local (gratuito, sin limites)
 # ─────────────────────────────────────────────────────────
 
 import os
@@ -12,7 +12,7 @@ import ollama
 import warnings
 warnings.filterwarnings("ignore")
 
-# ── CONFIGURACIÓN ──────────────────────────────────────────
+# ── CONFIGURACION ──────────────────────────────────────────
 # Modelo local de Ollama (cambia si usas otro, ej: "mistral", "phi3", "llama3.2")
 MODELO_OLLAMA = "llama3.2"
 
@@ -24,20 +24,20 @@ def cargar_contexto():
     try:
         with open("narrativa.txt", "r", encoding="utf-8") as f:
             contexto["narrativa"] = f.read().strip()
-            print("📖 Narrativa cargada correctamente.")
+            print("[NARRATIVA] Narrativa cargada correctamente.")
     except FileNotFoundError:
-        print("ℹ️ No se encontró narrativa.txt.")
+        print("[INFO] No se encontro narrativa.txt.")
     except Exception as e:
-        print(f"⚠️ Error al leer narrativa.txt: {e}")
+        print(f"[ERROR] Al leer narrativa.txt: {e}")
     
     try:
         with open("reglas.json", "r", encoding="utf-8") as f:
             contexto["reglas"] = json.load(f)
-            print("📋 Reglas de trading cargadas correctamente.")
+            print("[REGLAS] Reglas de trading cargadas correctamente.")
     except FileNotFoundError:
-        print("ℹ️ No se encontró reglas.json.")
+        print("[INFO] No se encontro reglas.json.")
     except Exception as e:
-        print(f"⚠️ Error al leer reglas.json: {e}")
+        print(f"[ERROR] Al leer reglas.json: {e}")
     
     return contexto
 
@@ -73,7 +73,7 @@ def get_macro_data():
             }
         return result if 'dxy' in result and 'vix' in result else None
     except Exception as e:
-        print(f"❌ Error obteniendo datos macro: {e}")
+        print(f"[ERROR] Obteniendo datos macro: {e}")
         return None
 
 # ── GENERAR INFORME CON OLLAMA ──────────────────────────
@@ -105,7 +105,7 @@ def generar_informe(macro_data, contexto):
     contexto_narrativa = ""
     if contexto.get("narrativa"):
         contexto_narrativa = f"""
-        CONTEXTO HISTÓRICO Y NARRATIVA DE MERCADO (de narrativa.txt):
+        CONTEXTO HISTORICO Y NARRATIVA DE MERCADO (de narrativa.txt):
         {contexto["narrativa"]}
         """
 
@@ -114,10 +114,10 @@ def generar_informe(macro_data, contexto):
     if contexto.get("reglas"):
         reglas_text = json.dumps(contexto["reglas"], ensure_ascii=False, indent=2)
         contexto_reglas = f"""
-        REGLAS DE FILTRO DE MERCADO Y ASIGNACIÓN (de reglas.json):
+        REGLAS DE FILTRO DE MERCADO Y ASIGNACION (de reglas.json):
         {reglas_text}
 
-        INSTRUCCIÓN ADICIONAL: Evalúa si alguna de estas reglas se está cumpliendo con los datos macro actuales. Menciona en el análisis si hay activación de Risk-Off o Risk-On según estas reglas, y sugiere asignaciones de cartera alineadas con el protocolo.
+        INSTRUCCION ADICIONAL: Evalua si alguna de estas reglas se esta cumpliendo con los datos macro actuales. Menciona en el analisis si hay activacion de Risk-Off o Risk-On segun estas reglas, y sugiere asignaciones de cartera alineadas con el protocolo.
         """
 
     # 4. Prompt completo
@@ -126,40 +126,40 @@ def generar_informe(macro_data, contexto):
     {contexto_narrativa}
     {contexto_reglas}
 
-    Actúa como el **estratega jefe de un fondo de inversión global multiactivo**. Tu experiencia combina macroeconomía, geopolítica, análisis de flujos de capital y psicología de mercado.
+    Actua como el **estratega jefe de un fondo de inversion global multiactivo**. Tu experiencia combina macroeconomia, geopolitica, analisis de flujos de capital y psicologia de mercado.
 
     **INSTRUCCIONES IMPORTANTES:**
     1. Utiliza los **datos macro actuales** para contextualizar el momento presente.
-    2. Utiliza la **narrativa histórica** (si está disponible) para enriquecer el análisis.
-    3. Evalúa explícitamente las **reglas de trading** (si están disponibles) y menciona si el régimen actual es Risk-On o Risk-Off según tus propios criterios.
-    4. Genera un **informe ejecutivo semanal** que sintetice los eventos clave y señale oportunidades de trading/inversión para la semana próxima.
+    2. Utiliza la **narrativa historica** (si esta disponible) para enriquecer el analisis.
+    3. Evalua explicitamente las **reglas de trading** (si estan disponibles) y menciona si el regimen actual es Risk-On o Risk-Off segun tus propios criterios.
+    4. Genera un **informe ejecutivo semanal** que sintetice los eventos clave y senale oportunidades de trading/inversion para la semana proxima.
     5. El informe debe ser **esencial, accionable y libre de verborrea**.
 
     **ESTRUCTURA OBLIGATORIA DEL INFORME:**
 
-    **SEMANA [Número] - RESUMEN EJECUTIVO DE MERCADOS**
+    **SEMANA [Numero] - RESUMEN EJECUTIVO DE MERCADOS**
 
-    **📌 Contexto Global (Macro/Geo/Sentimiento):**
-    [Máximo 4 oraciones por sección:
-    1. Macroeconómico: Los 2-3 datos/declaraciones de bancos centrales más impactantes y su efecto en tasas.
-    2. Geopolítico: El factor principal que influye en el apetito/aversión al riesgo.
-    3. Sentimiento de Mercado: Define el estado de ánimo (ej: "Aversión al Riesgo Moderada" o "Optimismo Cauteloso") y justifícalo brevemente.]
+    **[+] Contexto Global (Macro/Geo/Sentimiento):**
+    [Maximo 4 oraciones por seccion:
+    1. Macroeconomico: Los 2-3 datos/declaraciones de bancos centrales mas impactantes y su efecto en tasas.
+    2. Geopolitico: El factor principal que influye en el apetito/aversion al riesgo.
+    3. Sentimiento de Mercado: Define el estado de animo (ej: "Aversion al Riesgo Moderada" o "Optimismo Cauteloso") y justificalo brevemente.]
 
-    **📈 Análisis por Activo (Forex, Crypto, Comm., Sectores):**
-    [Máximo 1 párrafo por activo. Enfócate en tendencia, evento clave y nivel técnico crucial (soporte/resistencia).]
+    **[+] Analisis por Activo (Forex, Crypto, Comm., Sectores):**
+    [Maximo 1 parrafo por activo. Enfocate en tendencia, evento clave y nivel tecnico crucial (soporte/resistencia).]
 
-    **🎯 Radar de Oportunidades (Próxima Semana):**
+    **[+] Radar de Oportunidades (Proxima Semana):**
     [Lista 3-5 configuraciones con este formato exacto:
-    - **Activo/Configuración:** [Nombre]
-    - **Catalizador/Tesis:** [Máx. 2 líneas]
-    - **Nivel Clave:** [Entrada, stop-loss, objetivo]
-    - **Tipo de Oportunidad:** [Divergencia, Evento, Estacionalidad, Small Cap, Otro]
-    - **Nivel de Riesgo:** [Alto / Medio / Bajo]]
+    - Activo/Configuracion: [Nombre]
+    - Catalizador/Tesis: [Max. 2 lineas]
+    - Nivel Clave: [Entrada, stop-loss, objetivo]
+    - Tipo de Oportunidad: [Divergencia, Evento, Estacionalidad, Small Cap, Otro]
+    - Nivel de Riesgo: [Alto / Medio / Bajo]]
 
-    **📅 Calendario de Eventos Críticos:**
-    [Lista cronológica (Lunes a Viernes) de 3-5 eventos/ anuncios económicos más importantes de la próxima semana, con hora (GMT) y activo(s) afectado(s).]
+    **[+] Calendario de Eventos Criticos:**
+    [Lista cronologica (Lunes a Viernes) de 3-5 eventos/ anuncios economicos mas importantes de la proxima semana, con hora (GMT) y activo(s) afectado(s).]
 
-    **Nota de responsabilidad final:** *"Este análisis es para fines informativos y educativos. No constituye asesoramiento de inversión. Los mercados financieros son volátiles. Realice su propia investigación (DYOR) y considere su situación financiera individual antes de operar."*
+    **Nota de responsabilidad final:** *"Este analisis es para fines informativos y educativos. No constituye asesoramiento de inversion. Los mercados financieros son volatiles. Realice su propia investigacion (DYOR) y considere su situacion financiera individual antes de operar."*
     """
 
     try:
@@ -181,7 +181,7 @@ def generar_informe(macro_data, contexto):
     except Exception as e:
         return {
             "error": str(e),
-            "informe": f"Error al generar el informe con Ollama. Asegúrate de que el modelo '{MODELO_OLLAMA}' esté descargado (ollama pull {MODELO_OLLAMA}) y que el servidor esté corriendo (ollama serve).",
+            "informe": f"Error al generar el informe con Ollama. Asegurate de que el modelo '{MODELO_OLLAMA}' este descargado (ollama pull {MODELO_OLLAMA}) y que el servidor este corriendo (ollama serve).",
             "confianza": 0
         }
 
@@ -200,7 +200,7 @@ def guardar_informe(informe):
     if "error" in informe and informe["error"]:
         entrada = {
             "fecha": datetime.datetime.now().isoformat(),
-            "decision": f"⚠️ Error: {informe['error']}",
+            "decision": f"[ERROR] {informe['error']}",
             "fuente": f"Ollama ({MODELO_OLLAMA})",
             "tipo": "error"
         }
@@ -221,8 +221,8 @@ def guardar_informe(informe):
     with open(archivo, "w", encoding="utf-8") as f:
         json.dump(historial, f, ensure_ascii=False, indent=2)
     
-    print("✅ Informe guardado en ai_memory.json")
-    print("📋 Resumen del informe:")
+    print("[OK] Informe guardado en ai_memory.json")
+    print("[RESUMEN] Resumen del informe:")
     print("-" * 80)
     if len(entrada["decision"]) > 500:
         print(entrada["decision"][:500] + "...\n")
@@ -231,23 +231,23 @@ def guardar_informe(informe):
     print("-" * 80)
     
     if entrada.get("narrativa_usada", False):
-        print("📖 El informe ha integrado la narrativa histórica de narrativa.txt")
+        print("[NARRATIVA] El informe ha integrado la narrativa historica de narrativa.txt")
     if entrada.get("reglas_usadas", False):
-        print("📋 El informe ha integrado las reglas de trading de reglas.json")
-    print(f"🧠 Modelo utilizado: {entrada.get('modelo_usado', MODELO_OLLAMA)}")
+        print("[REGLAS] El informe ha integrado las reglas de trading de reglas.json")
+    print(f"[IA] Modelo utilizado: {entrada.get('modelo_usado', MODELO_OLLAMA)}")
 
-# ── EJECUCIÓN PRINCIPAL ──────────────────────────────────
+# ── EJECUCION PRINCIPAL ──────────────────────────────────
 if __name__ == "__main__":
     print("=" * 60)
-    print("🤖 AGENTE IA - ESTRATEGA JEFE (OLLAMA LOCAL)")
-    print("📊 Generando informe ejecutivo semanal")
+    print("[AGENTE] AGENTE IA - ESTRATEGA JEFE (OLLAMA LOCAL)")
+    print("[DATOS] Generando informe ejecutivo semanal")
     print("=" * 60)
     
-    # Verificar que Ollama está corriendo (opcional)
+    # Verificar que Ollama esta corriendo (opcional)
     try:
         ollama.list()
     except Exception:
-        print("❌ No se pudo conectar con Ollama. Asegúrate de que esté corriendo (ollama serve).")
+        print("[ERROR] No se pudo conectar con Ollama. Asegurate de que este corriendo (ollama serve).")
         exit(1)
     
     # Cargar contexto
@@ -256,9 +256,9 @@ if __name__ == "__main__":
     # Obtener datos macro
     macro_data = get_macro_data()
     if macro_data:
-        print("✅ Datos macro obtenidos correctamente.")
+        print("[OK] Datos macro obtenidos correctamente.")
     else:
-        print("❌ No se pudieron obtener datos macro. Verifica la conexión a internet.")
+        print("[ERROR] No se pudieron obtener datos macro. Verifica la conexion a internet.")
         guardar_informe({
             "error": "Sin datos macro disponibles",
             "informe": "No se pudieron obtener datos macro para generar el informe.",
@@ -266,9 +266,9 @@ if __name__ == "__main__":
         })
         exit(1)
     
-    print(f"🧠 Generando análisis con {MODELO_OLLAMA}...")
+    print(f"[IA] Generando analisis con {MODELO_OLLAMA}...")
     informe = generar_informe(macro_data, contexto)
     guardar_informe(informe)
     
-    print("\n✅ Proceso completado. Puedes ver el informe en el dashboard de MacroVision.")
+    print("\n[OK] Proceso completado. Puedes ver el informe en el dashboard de MacroVision.")
     print("=" * 60)

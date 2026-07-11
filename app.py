@@ -1,7 +1,8 @@
 # ─────────────────────────────────────────────────────────
-#  MacroVision · app.py (VERSIÓN DEFINITIVA FUSIONADA)
+#  MacroVision · app.py (VERSIÓN DEFINITIVA SIN ERRORES)
 #  Dashboard Macroeconómico con Semáforo Macro, Alertas,
-#  Correlaciones, Análisis de Activos y Memoria del Agente IA.
+#  Reglas de Trading, Correlaciones, Análisis de Activos
+#  y Memoria del Agente IA (Ollama)
 # ─────────────────────────────────────────────────────────
 
 import streamlit as st
@@ -28,7 +29,7 @@ st.set_page_config(
 # Auto-refresh cada 4 horas (opcional)
 st.markdown('<meta http-equiv="refresh" content="14400">', unsafe_allow_html=True)
 
-# ── CSS PROFESIONAL (fusionado) ───────────────────────────
+# ── CSS PROFESIONAL ──────────────────────────────────────
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -336,7 +337,7 @@ def load_ai_memory():
             return json.load(f)
     return []
 
-# ── FUNCIONES DE ALERTAS Y CONCLUSIONES (MEJORADAS) ──────
+# ── FUNCIONES DE ALERTAS Y CONCLUSIONES ──────────────────
 def generar_alertas(macro_data):
     """Genera alertas automáticas basadas en condiciones macro."""
     if not macro_data:
@@ -424,6 +425,44 @@ def generar_conclusion_estrategica(macro_data):
         "recomendacion": recomendacion
     }
 
+def evaluar_reglas(macro_data, reglas):
+    """
+    Evalúa las condiciones de reglas.json con los datos macro actuales.
+    Retorna una lista de alertas con mensajes específicos.
+    """
+    if not macro_data or not reglas:
+        return []
+
+    alertas_reglas = []
+    dxy = macro_data.get('dxy', {})
+    vix = macro_data.get('vix', {})
+    sp500 = macro_data.get('sp500', {})
+    oro = macro_data.get('oro', {})
+    cobre = macro_data.get('copper', {})
+
+    # Regla 1: DXY vs Oro
+    if dxy.get('change_pct', 0) > 1.0 and oro.get('change_pct', 0) < -2.0:
+        alertas_reglas.append({
+            "m": "📉 Regla DXY-Oro: DXY sube >1% y Oro cae >2% → Divergencia detectada.",
+            "c": "naranja"
+        })
+
+    # Regla 2: VIX > 25
+    if vix.get('price', 0) > 25:
+        alertas_reglas.append({
+            "m": f"🔴 VIX en {vix['price']:.1f} (>25) → Activación de Risk-Off.",
+            "c": "rojo"
+        })
+
+    # Regla 3: Cobre cae >5%
+    if cobre.get('change_pct', 0) < -5:
+        alertas_reglas.append({
+            "m": "📉 Cobre cae >5% → Señal de desaceleración global.",
+            "c": "rojo"
+        })
+
+    return alertas_reglas
+
 # ── FUNCIONES DE EJECUCIÓN DE SCRIPTS ────────────────────
 def ejecutar_macro_fetch():
     """Ejecuta macro_fetch.py en el mismo directorio y captura errores."""
@@ -448,6 +487,7 @@ def ejecutar_macro_fetch():
     except Exception as e:
         st.error(f"Excepción al ejecutar: {e}")
         return False
+
 def ejecutar_agente_ia():
     """Ejecuta Agente_Ollama.py si existe, y maneja errores de importación."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -529,7 +569,9 @@ with col_btn2:
             else:
                 st.error("❌ Error al ejecutar la IA. Revisa los mensajes anteriores.")
 
-# ── SEMÁFORO MACRO Y ALERTAS ──────────────────────────────
+# ─────────────────────────────────────────────────────────────
+#  SEMÁFORO MACRO Y ALERTAS (CÓDIGO LIMPIO Y CORREGIDO)
+# ─────────────────────────────────────────────────────────────
 if macro:
     # Métricas rápidas (3 columnas)
     c1, c2, c3 = st.columns(3)
@@ -545,92 +587,18 @@ if macro:
             for a in alertas:
                 st.markdown(f'<div class="alert-card alert-{a["c"]}">{a["m"]}</div>', unsafe_allow_html=True)
 
-def evaluar_reglas(macro_data, reglas):
-    """
-    Evalúa las condiciones de reglas.json con los datos macro actuales.
-    Retorna una lista de alertas con mensajes específicos.
-    """
-    if not macro_data or not reglas:
-        return []
-
-    alertas_reglas = []
-    dxy = macro_data.get('dxy', {})
-    vix = macro_data.get('vix', {})
-    sp500 = macro_data.get('sp500', {})
-    oro = macro_data.get('oro', {})
-    cobre = macro_data.get('copper', {})  # Necesitarás añadir cobre a get_macro_data
-    # Si no tienes cobre, puedes omitir o añadirlo
-
-    return alertas_reglas
-
-def evaluar_reglas(macro_data, reglas):
-    """
-    Evalúa las condiciones de reglas.json con los datos macro actuales.
-    Retorna una lista de alertas con mensajes específicos.
-    """
-    if not macro_data or not reglas:
-        return []
-
-    alertas_reglas = []
-    dxy = macro_data.get('dxy', {})
-    vix = macro_data.get('vix', {})
-    sp500 = macro_data.get('sp500', {})
-    oro = macro_data.get('oro', {})
-    cobre = macro_data.get('copper', {})  # Necesitarás añadir cobre a get_macro_data
-    # Si no tienes cobre, puedes omitir o añadirlo
-
-    # Regla 1: DXY vs Oro
-    if dxy.get('change_pct', 0) > 1.0 and oro.get('change_pct', 0) < -2.0:
-        alertas_reglas.append({
-            "m": "📉 Regla DXY-Oro: DXY sube >1% y Oro cae >2% → Divergencia detectada. Esperar corrección en metales.",
-            "c": "naranja"
-        })
-
-    # Regla 2: VIX > 25 (aversión al riesgo)
-    if vix.get('price', 0) > 25:
-        alertas_reglas.append({
-            "m": f"🔴 VIX en {vix['price']:.1f} (>25) → Activación de Risk-Off. Rotar a coberturas (Oro, Bonos, DXY).",
-            "c": "rojo"
-        })
-
-    # Regla 3: Cobre cae >5% en 30 días (requiere histórico)
-    # Para simplificar, usamos cambio diario como proxy
-    if macro_data.get('copper', {}).get('change_pct', 0) < -5:
-        alertas_reglas.append({
-            "m": "📉 Cobre cae >5% → Señal de desaceleración global. Reducir exposición a cíclicos.",
-            "c": "rojo"
-        })
-
-    # Regla 4: SP500 por debajo de SMA 200 (requiere calcular)
-    # Si tienes histórico, puedes calcularlo. Por ahora, omitimos.
-
-    return alertas_reglas
-    # Regla 1: DXY vs Oro
-    if dxy.get('change_pct', 0) > 1.0 and oro.get('change_pct', 0) < -2.0:
-        alertas_reglas.append({
-            "m": "📉 Regla DXY-Oro: DXY sube >1% y Oro cae >2% → Divergencia detectada. Esperar corrección en metales.",
-            "c": "naranja"
-        })
-
-    # Regla 2: VIX > 25 (aversión al riesgo)
-    if vix.get('price', 0) > 25:
-        alertas_reglas.append({
-            "m": f"🔴 VIX en {vix['price']:.1f} (>25) → Activación de Risk-Off. Rotar a coberturas (Oro, Bonos, DXY).",
-            "c": "rojo"
-        })
-
-    # Regla 3: Cobre cae >5% en 30 días (requiere histórico)
-    # Para simplificar, usamos cambio diario como proxy
-    if macro_data.get('copper', {}).get('change_pct', 0) < -5:
-        alertas_reglas.append({
-            "m": "📉 Cobre cae >5% → Señal de desaceleración global. Reducir exposición a cíclicos.",
-            "c": "rojo"
-        })
-
-    # Regla 4: SP500 por debajo de SMA 200 (requiere calcular)
-    # Si tienes histórico, puedes calcularlo. Por ahora, omitimos.
-
-    return alertas_reglas
+    # Alertas de reglas (cargar reglas.json)
+    try:
+        with open("reglas.json", "r", encoding="utf-8") as f:
+            reglas = json.load(f)
+    except:
+        reglas = None
+    if reglas:
+        reglas_alerts = evaluar_reglas(macro, reglas)
+        if reglas_alerts:
+            st.markdown("#### 📋 Alertas de Reglas")
+            for a in reglas_alerts:
+                st.markdown(f'<div class="alert-card alert-{a["c"]}">{a["m"]}</div>', unsafe_allow_html=True)
 
     # Régimen y conclusiones
     conclusion = generar_conclusion_estrategica(macro)
@@ -700,7 +668,7 @@ tabs = st.tabs([
 ])
 
 # ============================================================
-# TAB 1: SENTIMIENTO & TASAS (fusionado)
+# TAB 1: SENTIMIENTO & TASAS
 # ============================================================
 with tabs[0]:
     st.markdown("### 🏦 Tipos de Interés de los Bancos Centrales")
