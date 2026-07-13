@@ -13,7 +13,11 @@ from openpyxl import load_workbook
 from datetime import datetime
 import os
 import concurrent.futures
-
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")  # Silencia advertencias de Excel
+import sys
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding='utf-8')
 try:
     from config import FRED_API_KEY, FRED_SERIES, WORLD_BANK_SERIES, WORLD_BANK_COUNTRIES, BANK_META, CATEGORIES
 except ImportError:
@@ -23,7 +27,6 @@ except ImportError:
 #  Configuración de Sesión Resiliente (Retries & Timeouts)
 # ─────────────────────────────────────────────────────────
 def get_resilient_session(retries=3, backoff_factor=0.5, status_forcelist=(429, 500, 502, 503, 504)):
-    """Crea una sesión HTTP que reintenta automáticamente en caso de fallos temporales."""
     session = requests.Session()
     retry = Retry(
         total=retries,
@@ -38,7 +41,7 @@ def get_resilient_session(retries=3, backoff_factor=0.5, status_forcelist=(429, 
     return session
 
 http = get_resilient_session()
-TIMEOUT = 7  # Segundos máximos de espera por petición
+TIMEOUT = 7
 
 # ─────────────────────────────────────────────────────────
 #  Datos fallback (idénticos a los de app.py)
@@ -53,7 +56,7 @@ FALLBACK = {
 }
 
 # ─────────────────────────────────────────────────────────
-#  Helper: leer tasas desde Excel (si existe)
+#  Helper: leer tasas desde Excel (con manejo de permisos)
 # ─────────────────────────────────────────────────────────
 def load_rates_from_excel(excel_path: str, bank_code: str) -> list[dict]:
     if not os.path.exists(excel_path):
@@ -73,8 +76,11 @@ def load_rates_from_excel(excel_path: str, bank_code: str) -> list[dict]:
                     "r": round(tasa * 100, 2) if tasa < 1 else round(tasa, 2)
                 })
         return rates
+    except PermissionError:
+        print(f"  ⚠ Sin permiso para leer {excel_path} (permiso denegado). Usando fallback.")
+        return []
     except Exception as e:
-        print(f"  ⚠ Excel read {bank_code}: {e}")
+        print(f"  ⚠ Error al leer {bank_code} desde Excel: {e}")
         return []
 
 def get_current_rate_from_excel(excel_path: str, bank_code: str) -> float | None:
@@ -87,7 +93,6 @@ def get_current_rate_from_excel(excel_path: str, bank_code: str) -> float | None
 #  Funciones de API (optimizadas para hilos)
 # ─────────────────────────────────────────────────────────
 def _fetch_fred_single(series_id: str, label: str, cat: str) -> dict:
-    """Función de trabajo aislada para descargar una serie de la FRED."""
     url = "https://api.stlouisfed.org/fred/series/observations"
     params = {
         "series_id": series_id,
@@ -135,7 +140,6 @@ def build_fed_indicators() -> tuple[dict, float]:
     indicators = {}
     rate = None
     
-    # Ejecución paralela de hasta 5 peticiones simultáneas
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         futures = [executor.submit(_fetch_fred_single, s_id, label, cat) 
                    for s_id, (label, cat) in FRED_SERIES.items()]
@@ -166,7 +170,6 @@ def fetch_ecb_rate() -> float | None:
     return None
 
 def _fetch_wb_single(country: str, series_id: str, label: str, cat: str) -> dict:
-    """Función de trabajo aislada para el Banco Mundial."""
     url = f"https://api.worldbank.org/v2/country/{country}/indicator/{series_id}"
     params = {"format": "json", "per_page": 5, "mrv": 5}
     try:

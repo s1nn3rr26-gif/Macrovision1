@@ -1,8 +1,8 @@
 # ─────────────────────────────────────────────────────────
 #  MacroVision · app.py (VERSIÓN DEFINITIVA SIN ERRORES)
 #  Dashboard Macroeconómico con Semáforo Macro, Alertas,
-#  Reglas de Trading, Correlaciones, Análisis de Activos
-#  y Memoria del Agente IA (Ollama)
+#  Reglas de Trading, Correlaciones, Análisis de Activos,
+#  Módulo Trading Quant y Memoria del Agente IA (Ollama)
 # ─────────────────────────────────────────────────────────
 
 import streamlit as st
@@ -15,6 +15,7 @@ import subprocess
 import sys
 from datetime import datetime
 import yfinance as yf
+import requests
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -28,6 +29,48 @@ st.set_page_config(
 
 # Auto-refresh cada 4 horas (opcional)
 st.markdown('<meta http-equiv="refresh" content="14400">', unsafe_allow_html=True)
+
+# ── LISTAS DE ACTIVOS SUGERIDOS ──────────────────────────
+SUG_DIVISAS = [
+    ("EUR/USD", "EURUSD=X"), ("GBP/USD", "GBPUSD=X"), ("USD/JPY", "USDJPY=X"),
+    ("AUD/USD", "AUDUSD=X"), ("USD/CAD", "USDCAD=X"), ("NZD/USD", "NZDUSD=X"),
+    ("USD/CHF", "USDCHF=X"), ("DXY", "DX-Y.NYB")
+]
+
+SUG_COMMODITIES = [
+    ("Oro", "GC=F"), ("Plata", "SI=F"), ("Crudo WTI", "CL=F"),
+    ("Gas Natural", "NG=F"), ("Cobre", "HG=F"), ("Trigo", "ZW=F"),
+    ("Maíz", "ZC=F"), ("Café", "KC=F")
+]
+
+SUG_INDICES = [
+    ("S&P 500", "^GSPC"), ("Nasdaq", "^IXIC"), ("Dow Jones", "^DJI"),
+    ("DAX", "^GDAXI"), ("Nikkei 225", "^N225"), ("FTSE 100", "^FTSE"),
+    ("Hang Seng", "^HSI")
+]
+
+SUG_CRIPTO = [
+    ("Bitcoin", "BTC-USD"), ("Ethereum", "ETH-USD")
+]
+
+SUG_OTROS = [
+    ("NVIDIA", "NVDA"), ("Apple", "AAPL"), ("Tesla", "TSLA")
+]
+
+# ── FUNCIÓN PARA RENDERIZAR SUGERENCIAS ──────────────────
+def render_sugerencias(session_key, tickers, cols=6, label="Sugerencias:", list_name="default"):
+    """
+    Muestra botones de sugerencias de tickers.
+    Al hacer clic, actualiza el session_state[session_key] y rerun.
+    """
+    st.markdown(f"**{label}**")
+    cols_container = st.columns(cols)
+    for i, (display, ticker) in enumerate(tickers):
+        key = f"sug_{session_key}_{list_name}_{i}"
+        col_idx = i % len(cols_container) if cols_container else 0
+        if col_idx < len(cols_container) and cols_container[col_idx].button(display, key=key):
+            st.session_state[session_key] = ticker
+            st.rerun()
 
 # ── CSS PROFESIONAL ──────────────────────────────────────
 st.markdown("""
@@ -265,7 +308,6 @@ except ImportError:
 # ── FUNCIONES DE DATOS (CACHE) ────────────────────────────
 @st.cache_data(ttl=14400)
 def get_macro_data():
-    """Obtiene precios y cambios de los principales activos macro."""
     try:
         tickers = {
             'dxy': 'DX-Y.NYB',
@@ -280,22 +322,27 @@ def get_macro_data():
             return None
         result = {}
         for key, symbol in tickers.items():
-            close_series = data['Close'][symbol].dropna()
-            if len(close_series) < 2:
+            try:
+                if isinstance(data['Close'], pd.DataFrame):
+                    close_series = data['Close'][symbol].dropna()
+                else:
+                    close_series = data['Close'].dropna() if symbol == list(tickers.values())[0] else data['Close']
+                if len(close_series) < 2:
+                    continue
+                curr = float(close_series.iloc[-1])
+                prev = float(close_series.iloc[-2])
+                result[key] = {
+                    'price': curr,
+                    'change_pct': ((curr / prev) - 1) * 100
+                }
+            except (KeyError, IndexError, ValueError):
                 continue
-            curr = float(close_series.iloc[-1])
-            prev = float(close_series.iloc[-2])
-            result[key] = {
-                'price': curr,
-                'change_pct': ((curr / prev) - 1) * 100
-            }
         return result if 'dxy' in result and 'vix' in result else None
     except Exception:
         return None
 
 @st.cache_data(ttl=86400)
 def get_correlation_matrix():
-    """Calcula la matriz de correlación con Brent, WTI, DAX, Nikkei."""
     try:
         tickers = {
             'DXY': 'DX-Y.NYB',
@@ -323,7 +370,6 @@ def get_correlation_matrix():
 
 @st.cache_data(ttl=14400)
 def load_macro_data():
-    """Carga macro_data.json con los datos de bancos centrales."""
     if os.path.exists("macro_data.json"):
         with open("macro_data.json", "r", encoding="utf-8") as f:
             return json.load(f)
@@ -331,7 +377,6 @@ def load_macro_data():
 
 @st.cache_data(ttl=14400)
 def load_ai_memory():
-    """Carga el historial de decisiones de la IA desde ai_memory.json."""
     if os.path.exists("ai_memory.json"):
         with open("ai_memory.json", "r", encoding="utf-8") as f:
             return json.load(f)
@@ -339,7 +384,6 @@ def load_ai_memory():
 
 # ── FUNCIONES DE ALERTAS Y CONCLUSIONES ──────────────────
 def generar_alertas(macro_data):
-    """Genera alertas automáticas basadas en condiciones macro."""
     if not macro_data:
         return []
     alertas = []
@@ -367,10 +411,8 @@ def generar_alertas(macro_data):
     return alertas
 
 def generar_conclusion_estrategica(macro_data):
-    """Genera recomendación semanal basada en el régimen."""
     if not macro_data:
         return {"regimen": "SIN DATOS", "oportunidades": ["No hay datos."], "riesgos": ["No hay datos."], "recomendacion": "Verifica conexión."}
-
     dxy = macro_data.get('dxy', {})
     vix = macro_data.get('vix', {})
     sp500 = macro_data.get('sp500', {})
@@ -418,64 +460,32 @@ def generar_conclusion_estrategica(macro_data):
     else:
         recomendacion = "🟡 **Escenario mixto**: Selección activa. No agregar riesgo de forma agresiva."
 
-    return {
-        "regimen": regimen,
-        "oportunidades": oportunidades,
-        "riesgos": riesgos,
-        "recomendacion": recomendacion
-    }
+    return {"regimen": regimen, "oportunidades": oportunidades, "riesgos": riesgos, "recomendacion": recomendacion}
 
 def evaluar_reglas(macro_data, reglas):
-    """
-    Evalúa las condiciones de reglas.json con los datos macro actuales.
-    Retorna una lista de alertas con mensajes específicos.
-    """
     if not macro_data or not reglas:
         return []
-
     alertas_reglas = []
     dxy = macro_data.get('dxy', {})
     vix = macro_data.get('vix', {})
-    sp500 = macro_data.get('sp500', {})
     oro = macro_data.get('oro', {})
-    cobre = macro_data.get('copper', {})
+    cobre = macro_data.get('cobre', {})
 
-    # Regla 1: DXY vs Oro
     if dxy.get('change_pct', 0) > 1.0 and oro.get('change_pct', 0) < -2.0:
-        alertas_reglas.append({
-            "m": "📉 Regla DXY-Oro: DXY sube >1% y Oro cae >2% → Divergencia detectada.",
-            "c": "naranja"
-        })
-
-    # Regla 2: VIX > 25
+        alertas_reglas.append({"m": "📉 Regla DXY-Oro: DXY sube >1% y Oro cae >2% → Divergencia detectada.", "c": "naranja"})
     if vix.get('price', 0) > 25:
-        alertas_reglas.append({
-            "m": f"🔴 VIX en {vix['price']:.1f} (>25) → Activación de Risk-Off.",
-            "c": "rojo"
-        })
-
-    # Regla 3: Cobre cae >5%
+        vix_price = vix.get('price', 0)
+        alertas_reglas.append({"m": f"🔴 VIX en {vix_price:.1f} (>25) → Activación de Risk-Off.", "c": "rojo"})
     if cobre.get('change_pct', 0) < -5:
-        alertas_reglas.append({
-            "m": "📉 Cobre cae >5% → Señal de desaceleración global.",
-            "c": "rojo"
-        })
-
+        alertas_reglas.append({"m": "📉 Cobre cae >5% → Señal de desaceleración global.", "c": "rojo"})
     return alertas_reglas
 
 # ── FUNCIONES DE EJECUCIÓN DE SCRIPTS ────────────────────
 def ejecutar_macro_fetch():
-    """Ejecuta macro_fetch.py en el mismo directorio y captura errores."""
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         script_path = os.path.join(script_dir, "macro_fetch.py")
-        resultado = subprocess.run(
-            [sys.executable, script_path],
-            cwd=script_dir,
-            capture_output=True,
-            text=True,
-            timeout=180
-        )
+        resultado = subprocess.run([sys.executable, script_path], cwd=script_dir, capture_output=True, text=True, timeout=180)
         if resultado.returncode != 0:
             st.error(f"❌ Error en macro_fetch.py:\n```\n{resultado.stderr}\n```")
         else:
@@ -489,31 +499,22 @@ def ejecutar_macro_fetch():
         return False
 
 def ejecutar_agente_ia():
-    """Ejecuta Agente_Ollama.py si existe, y maneja errores de importación."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     script_path = os.path.join(script_dir, "Agente_Ollama.py")
-    
     if not os.path.exists(script_path):
         st.warning("⚠️ No se encontró el archivo Agente_Ollama.py. La funcionalidad de IA no está disponible.")
         return False
-    
     try:
-        resultado = subprocess.run(
-            [sys.executable, script_path],
-            cwd=script_dir,
-            capture_output=True,
-            text=True,
-            timeout=180
-        )
-        if resultado.returncode != 0:
-            st.error(f"❌ Error en Agente_Ollama.py:\n```\n{resultado.stderr}\n```")
-            if "ModuleNotFoundError" in resultado.stderr:
-                st.info("💡 Asegúrate de tener instalada la librería `ollama` (pip install ollama) o revisa el script.")
-        else:
-            st.success("✅ IA ejecutada correctamente.")
-            return True
+        with st.spinner("🧠 Ejecutando IA local (Ollama)... esto puede tomar hasta 2 minutos."):
+            resultado = subprocess.run([sys.executable, script_path], cwd=script_dir, capture_output=True, text=True, timeout=180)
+            if resultado.returncode != 0:
+                st.error(f"❌ Error en Agente_Ollama.py:\n```\n{resultado.stderr}\n```")
+                return False
+            else:
+                st.success("✅ IA ejecutada correctamente.")
+                return True
     except subprocess.TimeoutExpired:
-        st.error("⏱️ El proceso de IA tardó demasiado. Asegúrate de que Ollama esté corriendo.")
+        st.error("⏱️ El proceso de IA tardó demasiado (más de 3 minutos). Asegúrate de que Ollama esté corriendo y que el modelo esté descargado.")
     except Exception as e:
         st.error(f"Excepción al ejecutar: {e}")
     return False
@@ -526,7 +527,6 @@ if "ia_updated" not in st.session_state:
 if "data_updated" not in st.session_state:
     st.session_state.data_updated = False
 
-# Cargar datos
 macro = get_macro_data()
 data = load_macro_data()
 memoria_ia = load_ai_memory()
@@ -570,16 +570,14 @@ with col_btn2:
                 st.error("❌ Error al ejecutar la IA. Revisa los mensajes anteriores.")
 
 # ─────────────────────────────────────────────────────────────
-#  SEMÁFORO MACRO Y ALERTAS (CÓDIGO LIMPIO Y CORREGIDO)
+#  SEMÁFORO MACRO Y ALERTAS
 # ─────────────────────────────────────────────────────────────
 if macro:
-    # Métricas rápidas (3 columnas)
     c1, c2, c3 = st.columns(3)
     c1.metric("Dólar (DXY)", f"{macro['dxy']['price']:.2f}", f"{macro['dxy']['change_pct']:.2f}%", delta_color="inverse")
     c2.metric("Miedo (VIX)", f"{macro['vix']['price']:.2f}", f"{macro['vix']['change_pct']:.2f}%", delta_color="inverse")
     c3.metric("Bono US 10Y", f"{macro['bond10y']['price']:.2f}%", f"{macro['bond10y']['change_pct']:.2f}%")
 
-    # Alertas automáticas
     alertas = generar_alertas(macro)
     if alertas:
         with st.container():
@@ -587,7 +585,6 @@ if macro:
             for a in alertas:
                 st.markdown(f'<div class="alert-card alert-{a["c"]}">{a["m"]}</div>', unsafe_allow_html=True)
 
-    # Alertas de reglas (cargar reglas.json)
     try:
         with open("reglas.json", "r", encoding="utf-8") as f:
             reglas = json.load(f)
@@ -600,7 +597,6 @@ if macro:
             for a in reglas_alerts:
                 st.markdown(f'<div class="alert-card alert-{a["c"]}">{a["m"]}</div>', unsafe_allow_html=True)
 
-    # Régimen y conclusiones
     conclusion = generar_conclusion_estrategica(macro)
     st.markdown(f"**Régimen actual:** {conclusion['regimen']}")
     with st.expander("🟢 Oportunidades detectadas", expanded=True):
@@ -611,7 +607,6 @@ if macro:
             st.markdown(f"- {ri}")
     st.markdown(f"**📌 Recomendación semanal:** {conclusion['recomendacion']}")
 
-    # Gráfico DXY vs VIX (últimos 3 meses)
     st.markdown("### 📈 Evolución DXY vs VIX")
     try:
         raw_dxy = yf.download("DX-Y.NYB", period="3mo", progress=False)
@@ -639,7 +634,6 @@ if macro:
     except Exception as e:
         st.warning(f"No se pudo renderizar el gráfico: {e}")
 
-    # Tabla de variaciones diarias
     with st.expander("📊 Tabla de variaciones diarias", expanded=False):
         df_macro = pd.DataFrame({
             'Activo': ['DXY', 'VIX', 'S&P 500', 'Nasdaq', 'Oro', 'Bono 10Y'],
@@ -657,14 +651,15 @@ else:
     st.info("ℹ️ No se pudieron obtener datos macro (DXY/VIX). Verifica tu conexión a internet.")
 
 # ─────────────────────────────────────────────────────────────
-#  TABS PRINCIPALES (5 TABS)
+#  TABS PRINCIPALES (6 TABS)
 # ─────────────────────────────────────────────────────────────
 tabs = st.tabs([
     "📊 Sentimiento & Tasas",
     "🔍 Indicadores",
     "🔗 Correlaciones",
     "📈 Análisis de Activos",
-    "🤖 IA Estratega"
+    "🤖 IA Estratega",
+    "📊 Trading Quant"
 ])
 
 # ============================================================
@@ -675,7 +670,6 @@ with tabs[0]:
     cols = st.columns(6)
     for i, (k, b) in enumerate(data.items()):
         with cols[i]:
-            # Sentimiento general
             sent = b.get("sentiment", {})
             bulls = list(sent.values()).count("BULLISH")
             bears = list(sent.values()).count("BEARISH")
@@ -699,11 +693,7 @@ with tabs[0]:
     st.markdown("---")
     st.markdown("### 📉 Evolución de Tipos de Interés (Histórico)")
 
-    # Función para parsear fechas en español
-    MESES_ESP = {
-        "ene": 1, "feb": 2, "mar": 3, "abr": 4, "may": 5, "jun": 6,
-        "jul": 7, "ago": 8, "sep": 9, "oct": 10, "nov": 11, "dic": 12
-    }
+    MESES_ESP = {"ene": 1, "feb": 2, "mar": 3, "abr": 4, "may": 5, "jun": 6, "jul": 7, "ago": 8, "sep": 9, "oct": 10, "nov": 11, "dic": 12}
     MESES_ESP.update({k.capitalize(): v for k, v in MESES_ESP.items()})
 
     def parse_fecha(fecha_str: str) -> datetime:
@@ -731,18 +721,8 @@ with tabs[0]:
                 rates_sorted = sorted(rates, key=lambda x: parse_fecha(x["date"]))
                 fechas = [parse_fecha(r["date"]) for r in rates_sorted]
                 valores = [r["r"] for r in rates_sorted]
-                fig_rates.add_trace(go.Scatter(
-                    x=fechas, y=valores, name=k,
-                    line=dict(color=BANK_COLORS.get(k, "#ffffff"), width=2),
-                    mode='lines+markers'
-                ))
-        fig_rates.update_layout(
-            paper_bgcolor="#0d1117", plot_bgcolor="#0d1117", font=dict(color="#e2e8f0"),
-            height=300, margin=dict(l=20, r=20, t=20, b=20),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02),
-            xaxis=dict(tickformat="%b-%y", gridcolor="#1f2937"),
-            yaxis=dict(ticksuffix="%", gridcolor="#1f2937")
-        )
+                fig_rates.add_trace(go.Scatter(x=fechas, y=valores, name=k, line=dict(color=BANK_COLORS.get(k, "#ffffff"), width=2), mode='lines+markers'))
+        fig_rates.update_layout(paper_bgcolor="#0d1117", plot_bgcolor="#0d1117", font=dict(color="#e2e8f0"), height=300, margin=dict(l=20, r=20, t=20, b=20), legend=dict(orientation="h", yanchor="bottom", y=1.02), xaxis=dict(tickformat="%b-%y", gridcolor="#1f2937"), yaxis=dict(ticksuffix="%", gridcolor="#1f2937"))
         st.plotly_chart(fig_rates, use_container_width=True)
 
 # ============================================================
@@ -778,20 +758,8 @@ with tabs[2]:
     st.caption("Muestra cómo se mueven los activos entre sí. 1.0 = movimiento idéntico, -1.0 = inverso.")
     corr_matrix = get_correlation_matrix()
     if corr_matrix is not None:
-        fig_corr = px.imshow(
-            corr_matrix,
-            text_auto=".2f",
-            aspect="auto",
-            color_continuous_scale="RdBu_r",
-            zmin=-1,
-            zmax=1
-        )
-        fig_corr.update_layout(
-            paper_bgcolor="#0d1117",
-            plot_bgcolor="#0d1117",
-            font=dict(color="#e2e8f0"),
-            height=600
-        )
+        fig_corr = px.imshow(corr_matrix, text_auto=".2f", aspect="auto", color_continuous_scale="RdBu_r", zmin=-1, zmax=1)
+        fig_corr.update_layout(paper_bgcolor="#0d1117", plot_bgcolor="#0d1117", font=dict(color="#e2e8f0"), height=600)
         st.plotly_chart(fig_corr, use_container_width=True)
     else:
         st.warning("No se pudieron obtener datos de correlación. Intente más tarde.")
@@ -801,14 +769,25 @@ with tabs[2]:
 # ============================================================
 with tabs[3]:
     st.markdown("### 📈 Análisis Técnico Multi-Plazo")
-    col_input, _ = st.columns([1, 2])
-    with col_input:
-        ticker_input = st.text_input("Símbolo del Activo (ej. AAPL, BTC-USD, SPY, NVDA):", value="SPY").upper()
+    st.caption("Selecciona un activo para ver su gráfico con medias móviles.")
 
-    if ticker_input:
-        with st.spinner(f"Obteniendo datos de {ticker_input}..."):
+    ticker_analisis = st.text_input(
+        "Símbolo del Activo (ej. AAPL, BTC-USD, SPY, NVDA):",
+        value=st.session_state.get("ticker_analisis", "SPY")
+    )
+
+    st.markdown("---")
+    st.markdown("**Sugerencias rápidas:**")
+    render_sugerencias("ticker_analisis", SUG_DIVISAS, cols=4, label="Divisas", list_name="an_divisas")
+    render_sugerencias("ticker_analisis", SUG_COMMODITIES, cols=4, label="Commodities", list_name="an_commo")
+    render_sugerencias("ticker_analisis", SUG_INDICES, cols=4, label="Índices", list_name="an_indices")
+    render_sugerencias("ticker_analisis", SUG_CRIPTO + SUG_OTROS, cols=4, label="Cripto / Otros", list_name="an_otros")
+    st.markdown("---")
+
+    if ticker_analisis:
+        with st.spinner(f"Obteniendo datos de {ticker_analisis}..."):
             try:
-                df_asset = yf.download(ticker_input, period="2y", progress=False)
+                df_asset = yf.download(ticker_analisis, period="2y", progress=False)
                 if not df_asset.empty:
                     df_asset['SMA_20'] = df_asset['Close'].rolling(window=20).mean()
                     df_asset['SMA_50'] = df_asset['Close'].rolling(window=50).mean()
@@ -828,7 +807,7 @@ with tabs[3]:
                     fig_asset.add_trace(go.Scatter(x=df_asset.index, y=df_asset['SMA_200'].squeeze(), line=dict(color='#ef4444', width=2), name='Largo (200d)'))
 
                     fig_asset.update_layout(
-                        title=f"Acción del Precio y Tendencias - {ticker_input}",
+                        title=f"Acción del Precio y Tendencias - {ticker_analisis}",
                         yaxis_title="Precio USD",
                         xaxis_rangeslider_visible=False,
                         paper_bgcolor="#0d1117",
@@ -876,20 +855,9 @@ with tabs[4]:
     st.markdown("---")
     st.markdown("### 📋 Prompt para IA Externa (ChatGPT / Ollama)")
     if macro:
-        # Detección de anomalías (Smart Money)
         anomalias = []
         try:
-            tickers_extra = {
-                'SP500': '^GSPC',
-                'NASDAQ': '^IXIC',
-                'ORO': 'GC=F',
-                'COBRE': 'HG=F',
-                'US10Y': '^TNX',
-                'WTI': 'CL=F',
-                'Brent': 'BZ=F',
-                'DAX': '^GDAXI',
-                'Nikkei': '^N225'
-            }
+            tickers_extra = {'SP500': '^GSPC', 'NASDAQ': '^IXIC', 'ORO': 'GC=F', 'COBRE': 'HG=F', 'US10Y': '^TNX', 'WTI': 'CL=F', 'Brent': 'BZ=F', 'DAX': '^GDAXI', 'Nikkei': '^N225'}
             extra_data = yf.download(list(tickers_extra.values()), period="40d", progress=False)
             if not extra_data.empty:
                 for name, symbol in tickers_extra.items():
@@ -938,6 +906,369 @@ with tabs[4]:
         st.code(prompt_ia, language="markdown")
     else:
         st.warning("No hay datos de mercado para generar el prompt.")
+
+# ============================================================
+# TAB 6: TRADING QUANT (Módulos corregidos)
+# ============================================================
+with tabs[5]:
+    st.markdown("### 📊 Módulo Cuantitativo - Trading Institucional")
+
+    quant_tab = st.radio(
+        "Selecciona módulo:",
+        ["Flujo de Órdenes", "Correlaciones en Tiempo Real", "Sentimiento de Mercado", "Alertas Push (Telegram)", "Dashboard de Riesgo", "Escáner de Oportunidades"],
+        horizontal=True
+    )
+
+    # ── FLUJO DE ÓRDENES ──
+    if quant_tab == "Flujo de Órdenes":
+        st.markdown("#### 📊 Flujo de Órdenes (Approximado)")
+        st.caption("Indicadores de flujo de dinero basados en precio y volumen (OBV, VWAP).")
+
+        ticker_of = st.text_input(
+            "Activo:",
+            value=st.session_state.get("ticker_of", "SPY")
+        )
+
+        st.markdown("**Sugerencias:**")
+        render_sugerencias("ticker_of", SUG_DIVISAS + SUG_COMMODITIES + SUG_INDICES + SUG_CRIPTO + SUG_OTROS, cols=4, label="Sugerencias", list_name="of")
+
+        if st.button("Calcular flujo", key="calc_of"):
+            with st.spinner(f"Descargando datos de {ticker_of}..."):
+                try:
+                    cache_key = f"of_{ticker_of}"
+                    if cache_key in st.session_state:
+                        df_of = st.session_state[cache_key]
+                    else:
+                        df_of = yf.download(ticker_of, period="1mo", progress=False, timeout=15)
+                        if df_of.empty:
+                            st.error(f"No se encontraron datos para {ticker_of}. Verifica el símbolo.")
+                            st.stop()
+                        st.session_state[cache_key] = df_of
+
+                    df_of['OBV'] = (df_of['Volume'] * ((df_of['Close'] > df_of['Close'].shift(1)).astype(int) - (df_of['Close'] < df_of['Close'].shift(1)).astype(int))).cumsum()
+                    df_of['VWAP'] = (df_of['Volume'] * (df_of['High'] + df_of['Low'] + df_of['Close']) / 3).cumsum() / df_of['Volume'].cumsum()
+
+                    fig_of = go.Figure()
+                    fig_of.add_trace(go.Scatter(x=df_of.index, y=df_of['Close'], name="Precio", line=dict(color='#3b82f6')))
+                    fig_of.add_trace(go.Scatter(x=df_of.index, y=df_of['VWAP'], name="VWAP", line=dict(color='#f59e0b', dash='dot')))
+                    fig_of.add_trace(go.Bar(x=df_of.index, y=df_of['OBV'], name="OBV", yaxis="y2", marker_color='#8b5cf6'))
+                    fig_of.update_layout(
+                        title=f"Flujo de Órdenes - {ticker_of}",
+                        yaxis=dict(title="Precio", gridcolor="#1f2937"),
+                        yaxis2=dict(title="OBV", overlaying="y", side="right", gridcolor="rgba(0,0,0,0)"),
+                        paper_bgcolor="#0d1117", plot_bgcolor="#0d1117", font=dict(color="#e2e8f0"), height=400
+                    )
+                    st.plotly_chart(fig_of, use_container_width=True)
+
+                    st.info("💡 **Interpretación:** OBV subiendo con precio = acumulación (compradores fuertes). VWAP por encima del precio = presión vendedora.")
+                except Exception as e:
+                    st.error(f"Error al obtener datos: {e}. Intenta con otro símbolo.")
+
+    # ── CORRELACIONES ──
+    elif quant_tab == "Correlaciones en Tiempo Real":
+        st.markdown("#### 🔗 Correlaciones en Tiempo Real (Rolling 20 días)")
+        st.caption("Evolución de la correlación entre dos activos.")
+
+        col_a, col_b = st.columns(2)
+        with col_a:
+            ticker_a = st.text_input(
+                "Activo A:",
+                value=st.session_state.get("ticker_corr_a", "GLD")
+            )
+            st.markdown("**Sugerencias A:**")
+            render_sugerencias("ticker_corr_a", SUG_DIVISAS + SUG_COMMODITIES + SUG_INDICES + SUG_CRIPTO + SUG_OTROS, cols=3, label="Sugerencias A", list_name="corr_a")
+        with col_b:
+            ticker_b = st.text_input(
+                "Activo B:",
+                value=st.session_state.get("ticker_corr_b", "DXY")
+            )
+            st.markdown("**Sugerencias B:**")
+            render_sugerencias("ticker_corr_b", SUG_DIVISAS + SUG_COMMODITIES + SUG_INDICES + SUG_CRIPTO + SUG_OTROS, cols=3, label="Sugerencias B", list_name="corr_b")
+
+        if st.button("Calcular correlación dinámica"):
+            with st.spinner("Descargando datos..."):
+                try:
+                    cache_key_a = f"corr_{ticker_a}"
+                    cache_key_b = f"corr_{ticker_b}"
+                    if cache_key_a in st.session_state:
+                        df_a = st.session_state[cache_key_a]
+                    else:
+                        df_a = yf.download(ticker_a, period="3mo", progress=False, timeout=15)
+                        if df_a.empty:
+                            st.error(f"No se encontraron datos para {ticker_a}. Verifica el símbolo.")
+                            st.stop()
+                        st.session_state[cache_key_a] = df_a
+
+                    if cache_key_b in st.session_state:
+                        df_b = st.session_state[cache_key_b]
+                    else:
+                        df_b = yf.download(ticker_b, period="3mo", progress=False, timeout=15)
+                        if df_b.empty:
+                            st.error(f"No se encontraron datos para {ticker_b}. Verifica el símbolo.")
+                            st.stop()
+                        st.session_state[cache_key_b] = df_b
+
+                    merged = pd.DataFrame(index=df_a.index)
+                    merged[ticker_a] = df_a['Close']
+                    merged[ticker_b] = df_b['Close']
+                    merged = merged.dropna()
+                    if len(merged) < 20:
+                        st.warning("No hay suficientes datos superpuestos para calcular correlación (mínimo 20 días).")
+                    else:
+                        merged['Corr'] = merged[ticker_a].rolling(20).corr(merged[ticker_b]).fillna(0)
+
+                        fig_corr = go.Figure()
+                        fig_corr.add_trace(go.Scatter(x=merged.index, y=merged['Corr'], name="Correlación 20d", line=dict(color='#22c55e')))
+                        fig_corr.add_hline(y=0, line_dash="dash", line_color="#ef4444")
+                        fig_corr.add_hline(y=1, line_dash="dash", line_color="#4ade80")
+                        fig_corr.add_hline(y=-1, line_dash="dash", line_color="#4ade80")
+                        fig_corr.update_layout(
+                            title=f"Correlación {ticker_a} vs {ticker_b} (20 días)",
+                            paper_bgcolor="#0d1117", plot_bgcolor="#0d1117", font=dict(color="#e2e8f0"), height=350
+                        )
+                        st.plotly_chart(fig_corr, use_container_width=True)
+
+                        corr_actual = merged['Corr'].iloc[-1]
+                        if abs(corr_actual) > 0.7:
+                            st.success(f"✅ Correlación fuerte ({corr_actual:.2f}). Los activos se mueven juntos.")
+                        elif abs(corr_actual) > 0.3:
+                            st.warning(f"⚠️ Correlación moderada ({corr_actual:.2f}).")
+                        else:
+                            st.info(f"ℹ️ Correlación débil ({corr_actual:.2f}). No hay relación clara.")
+                except Exception as e:
+                    st.error(f"Error: {e}. Intenta con otros símbolos.")
+
+    # ── SENTIMIENTO ──
+    elif quant_tab == "Sentimiento de Mercado":
+        st.markdown("#### 🧠 Sentimiento de Mercado Agregado")
+        st.caption("Índice de sentimiento basado en VIX, DXY y Oro.")
+
+        with st.spinner("Calculando sentimiento..."):
+            macro = get_macro_data()
+            if macro:
+                vix = macro.get('vix', {}).get('price', 0)
+                dxy_change = macro.get('dxy', {}).get('change_pct', 0)
+                oro_change = macro.get('oro', {}).get('change_pct', 0)
+
+                sentimiento_score = 50
+                if vix > 25:
+                    sentimiento_score -= 20
+                elif vix < 15:
+                    sentimiento_score += 15
+                if dxy_change > 0 and oro_change < 0:
+                    sentimiento_score -= 10
+                elif dxy_change < 0 and oro_change > 0:
+                    sentimiento_score += 10
+
+                sentimiento_score = max(0, min(100, sentimiento_score))
+                if sentimiento_score >= 70:
+                    sentimiento = "🟢 Apetito por Riesgo (Optimista)"
+                    color = "#22c55e"
+                elif sentimiento_score <= 30:
+                    sentimiento = "🔴 Aversión al Riesgo (Pesimista)"
+                    color = "#ef4444"
+                else:
+                    sentimiento = "🟡 Neutral (Precaución)"
+                    color = "#f59e0b"
+
+                st.markdown(f"**Índice de Sentimiento:** {sentimiento_score}/100")
+                st.markdown(f"**Estado:** <span style='color:{color}; font-weight:bold;'>{sentimiento}</span>", unsafe_allow_html=True)
+
+                fig_sent = go.Figure(go.Indicator(
+                    mode="gauge+number",
+                    value=sentimiento_score,
+                    title={'text': "Sentimiento de Mercado"},
+                    gauge={'axis': {'range': [0, 100]}, 'bar': {'color': color},
+                           'steps': [
+                               {'range': [0, 30], 'color': 'rgba(239,68,68,0.2)'},
+                               {'range': [30, 70], 'color': 'rgba(245,158,11,0.2)'},
+                               {'range': [70, 100], 'color': 'rgba(34,197,94,0.2)'}
+                           ]}
+                ))
+                fig_sent.update_layout(paper_bgcolor="#0d1117", font=dict(color="#e2e8f0"), height=250)
+                st.plotly_chart(fig_sent, use_container_width=True)
+
+                st.caption("💡 **Interpretación:** >70 = apetito por riesgo (bullish), <30 = aversión (bearish).")
+            else:
+                st.warning("No hay datos macro disponibles.")
+
+    # ── ALERTAS ──
+    elif quant_tab == "Alertas Push (Telegram)":
+        st.markdown("#### 📨 Configuración de Alertas por Telegram")
+        st.caption("Recibe notificaciones automáticas cuando se activen condiciones de mercado.")
+
+        st.warning("⚠️ Necesitas un bot de Telegram. Crea uno con @BotFather y obtén el token.")
+
+        with st.form("telegram_form"):
+            token = st.text_input("Token del Bot de Telegram:", placeholder="123456:ABC-DEF...")
+            chat_id = st.text_input("Chat ID (puedes usar @getmyid_bot):")
+            enviar_prueba = st.form_submit_button("📤 Enviar mensaje de prueba")
+
+        if enviar_prueba and token and chat_id:
+            url = f"https://api.telegram.org/bot{token}/sendMessage"
+            payload = {"chat_id": chat_id, "text": "✅ MacroVision: Alerta de prueba activada. El sistema funciona."}
+            try:
+                r = requests.post(url, json=payload, timeout=10)
+                if r.status_code == 200:
+                    st.success("✅ Mensaje enviado correctamente a Telegram.")
+                else:
+                    st.error(f"Error: {r.json()}")
+            except Exception as e:
+                st.error(f"Error al enviar: {e}")
+
+        if st.button("🔔 Probar alerta de VIX > 25"):
+            macro = get_macro_data()
+            vix_price = macro.get('vix', {}).get('price', 0) if macro else 0
+            if vix_price > 25:
+                st.warning(f"🔴 VIX = {vix_price:.1f} (>25). ¡Alerta de riesgo activada!")
+                if token and chat_id:
+                    try:
+                        msg = f"⚠️ ALERTA MACRO: VIX ha superado 25 ({vix_price:.1f}). Régimen de aversión al riesgo."
+                        requests.post(f"https://api.telegram.org/bot{token}/sendMessage", json={"chat_id": chat_id, "text": msg})
+                        st.success("Alerta enviada a Telegram.")
+                    except:
+                        st.error("Error al enviar Telegram. Verifica token y chat ID.")
+            else:
+                st.info(f"VIX = {vix_price:.1f}. No se supera el umbral.")
+
+    # ── RIESGO (CORREGIDO) ──
+    elif quant_tab == "Dashboard de Riesgo":
+        st.markdown("#### 🛡️ Dashboard de Riesgo (VaR, ES, Drawdown)")
+        st.caption("Métricas de riesgo para un activo o cartera.")
+
+        riesgo_activo = st.text_input("Activo para análisis de riesgo:", value="SPY")
+
+        if st.button("Calcular riesgo"):
+            with st.spinner(f"Calculando métricas de riesgo para {riesgo_activo}..."):
+                try:
+                    df_risk = yf.download(riesgo_activo, period="1y", progress=False)
+
+                    if df_risk.empty:
+                        st.error(f"No se encontraron datos para {riesgo_activo}. Verifica el símbolo.")
+                    else:
+                        returns = df_risk['Close'].pct_change().dropna()
+
+                        if len(returns) < 2:
+                            st.warning("No hay suficientes datos para calcular métricas de riesgo.")
+                        else:
+                            # Extraer todos los valores como floats nativos
+                            var_95 = float(returns.quantile(0.05) * 100) if not pd.isna(returns.quantile(0.05)) else 0.0
+                            var_quantile = returns.quantile(0.05)
+                            es_filter = returns[returns <= var_quantile]
+                            es_95 = float(es_filter.mean() * 100) if not es_filter.empty and not pd.isna(es_filter.mean()) else 0.0
+                            cum_ret = (1 + returns).cumprod()
+                            drawdown = (cum_ret / cum_ret.cummax() - 1) * 100
+                            max_drawdown = float(drawdown.min()) if not drawdown.empty and not pd.isna(drawdown.min()) else 0.0
+                            vol = float(returns.std() * (252 ** 0.5) * 100) if returns.std() != 0 else 0.0
+                            sharpe = float((returns.mean() / returns.std()) * (252 ** 0.5)) if returns.std() != 0 and not pd.isna(returns.std()) else 0.0
+
+                            c1, c2, c3, c4, c5 = st.columns(5)
+                            c1.metric("VaR 95% (1d)", f"{var_95:.2f}%")
+                            c2.metric("ES 95% (1d)", f"{es_95:.2f}%")
+                            c3.metric("Max Drawdown", f"{max_drawdown:.2f}%")
+                            c4.metric("Volatilidad (anual)", f"{vol:.2f}%")
+                            c5.metric("Sharpe Ratio", f"{sharpe:.2f}")
+
+                            fig_dd = go.Figure()
+                            fig_dd.add_trace(go.Scatter(x=drawdown.index, y=drawdown, fill='tozeroy', line=dict(color='#ef4444')))
+                            fig_dd.update_layout(
+                                title="Drawdown Histórico",
+                                paper_bgcolor="#0d1117",
+                                plot_bgcolor="#0d1117",
+                                font=dict(color="#e2e8f0"),
+                                height=250,
+                                margin=dict(l=20, r=20, t=40, b=20)
+                            )
+                            st.plotly_chart(fig_dd, use_container_width=True)
+
+                            st.caption("💡 **Interpretación:** VaR = pérdida esperada en el peor 5% de los días. ES = promedio de pérdidas en esos días. Max Drawdown = mayor caída desde un pico histórico.")
+                except Exception as e:
+                    st.error(f"Error al calcular riesgos: {e}")
+
+    # ── ESCÁNER (CORREGIDO) ──
+    elif quant_tab == "Escáner de Oportunidades":
+        st.markdown("#### 🔍 Escáner en Tiempo Real")
+        st.caption("Detecta automáticamente activos que cumplen condiciones. (Máximo 5 activos por escaneo)")
+
+        activos_scan = {
+            "S&P 500 (SPY)": "SPY",
+            "Nasdaq (QQQ)": "QQQ",
+            "Oro (GLD)": "GLD",
+            "Dólar (UUP)": "UUP",
+            "VIX (VXX)": "VXX",
+            "Crudo WTI (USO)": "USO",
+            "Bitcoin (IBIT)": "IBIT"
+        }
+
+        seleccionados = st.multiselect(
+            "Selecciona activos para escanear (máx. 5):",
+            options=list(activos_scan.keys()),
+            default=list(activos_scan.keys())[:4]
+        )
+
+        if st.button("🔎 Escanear ahora") and seleccionados:
+            with st.spinner(f"Escaneando {len(seleccionados)} activos..."):
+                oportunidades = []
+                errores = []
+                for nombre in seleccionados:
+                    sym = activos_scan[nombre]
+                    try:
+                        df_scan = yf.download(sym, period="2mo", progress=False, timeout=15)
+                        if df_scan.empty or len(df_scan) < 20:
+                            errores.append(f"{nombre}: Datos insuficientes")
+                            continue
+
+                        # Extraer valores con .iloc[fila, columna] para garantizar escalar
+                        close_prices = df_scan['Close'].dropna()
+                        if len(close_prices) < 2:
+                            errores.append(f"{nombre}: Datos insuficientes")
+                            continue
+                        precio = float(close_prices.iloc[-1])
+                        precio_anterior = float(close_prices.iloc[-2])
+
+                        sma_50_series = df_scan['Close'].rolling(50).mean()
+                        sma_200_series = df_scan['Close'].rolling(200).mean()
+                        sma_50 = float(sma_50_series.iloc[-1]) if len(df_scan) >= 50 and not pd.isna(sma_50_series.iloc[-1]) else precio
+                        sma_200 = float(sma_200_series.iloc[-1]) if len(df_scan) >= 200 and not pd.isna(sma_200_series.iloc[-1]) else precio
+
+                        cambios = df_scan['Close'].pct_change().dropna()
+                        if len(cambios) >= 14:
+                            ganancias = cambios[cambios > 0].sum()
+                            perdidas = -cambios[cambios < 0].sum()
+                            rsi = 100 - (100 / (1 + ganancias / perdidas)) if perdidas != 0 else 100
+                        else:
+                            rsi = 50
+
+                        cambio = ((precio / precio_anterior) - 1) * 100 if precio_anterior != 0 else 0
+
+                        if any(pd.isna([precio, sma_50, sma_200, rsi, cambio])):
+                            errores.append(f"{nombre}: Datos incompletos (NaN)")
+                            continue
+
+                        if precio > sma_50 and sma_50 > sma_200:
+                            oportunidades.append(("🟢", f"**{nombre}** | Tendencia alcista | RSI: {rsi:.0f} | Cambio: {cambio:+.2f}%"))
+                        elif precio < sma_50 and sma_50 < sma_200:
+                            oportunidades.append(("🔴", f"**{nombre}** | Tendencia bajista | RSI: {rsi:.0f} | Cambio: {cambio:+.2f}%"))
+                        elif rsi < 30 and precio > sma_200:
+                            oportunidades.append(("🟡", f"**{nombre}** | Sobreventa (RSI<30) pero sobre SMA200 → posible rebote"))
+                        elif rsi > 70 and precio < sma_200:
+                            oportunidades.append(("🟡", f"**{nombre}** | Sobrecompra (RSI>70) bajo SMA200 → posible caída"))
+                        else:
+                            oportunidades.append(("⚪", f"**{nombre}** | Sin señal clara | RSI: {rsi:.0f} | Cambio: {cambio:+.2f}%"))
+                    except Exception as e:
+                        errores.append(f"{nombre}: {str(e)[:60]}")
+
+                if oportunidades:
+                    st.markdown("#### 📊 Resultados del escáner:")
+                    for color, msg in oportunidades:
+                        st.markdown(f"{color} {msg}")
+                else:
+                    st.info("No se detectaron oportunidades claras en este momento.")
+
+                if errores:
+                    with st.expander("⚠️ Errores al obtener datos de algunos activos"):
+                        for e in errores:
+                            st.warning(e)
 
 # ── FOOTER ──────────────────────────────────────────────────
 st.markdown("""
