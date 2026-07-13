@@ -73,6 +73,17 @@
         "date": "2025"
       },
       {
+        "cat": "CONSUMO",
+        "name": "Household Consumption",
+        "actual": "3.00%",
+        "prev": "2.63%",
+        "dev": "+0.37%",
+        "dir": 1,
+        "raw_actual": 2.99940910703087,
+        "raw_prev": 2.63135931130705,
+        "date": "2024"
+      },
+      {
         "cat": "INFLACIÓN",
         "name": "CPI Inflation y/y",
         "actual": "2.95%",
@@ -93,20 +104,9 @@
         "raw_actual": 2.16138195623856,
         "raw_prev": 2.79318715363841,
         "date": "2025"
-      },
-      {
-        "cat": "CONSUMO",
-        "name": "Household Consumption",
-        "actual": "3.00%",
-        "prev": "2.63%",
-        "dev": "+0.37%",
-        "dir": 1,
-        "raw_actual": 2.99940910703087,
-        "raw_prev": 2.63135931130705,
-        "date": "2024"
       }
     ],
-    "updated": "2026-07-12T10:02:54.385048"
+    "updated": "2026-07-12T21:28:03.321051"
   },
   "BCE": {
     "name": "BCE",
@@ -155,17 +155,6 @@
     },
     "indicators": [
       {
-        "cat": "CONSUMO",
-        "name": "Household Consumption",
-        "actual": "1.47%",
-        "prev": "1.65%",
-        "dev": "-0.18%",
-        "dir": -1,
-        "raw_actual": 1.47255129157769,
-        "raw_prev": 1.65201481277421,
-        "date": "2025"
-      },
-      {
         "cat": "INFLACIÓN",
         "name": "CPI Inflation y/y",
         "actual": "2.47%",
@@ -177,14 +166,14 @@
         "date": "2025"
       },
       {
-        "cat": "CRECIMIENTO",
-        "name": "GDP Growth y/y",
-        "actual": "1.41%",
-        "prev": "0.94%",
-        "dev": "+0.47%",
-        "dir": 1,
-        "raw_actual": 1.41107242318353,
-        "raw_prev": 0.938707263867073,
+        "cat": "CONSUMO",
+        "name": "Household Consumption",
+        "actual": "1.47%",
+        "prev": "1.65%",
+        "dev": "-0.18%",
+        "dir": -1,
+        "raw_actual": 1.47255129157769,
+        "raw_prev": 1.65201481277421,
         "date": "2025"
       },
       {
@@ -197,9 +186,20 @@
         "raw_actual": 6.28355946264135,
         "raw_prev": 6.34778064605911,
         "date": "2025"
+      },
+      {
+        "cat": "CRECIMIENTO",
+        "name": "GDP Growth y/y",
+        "actual": "1.41%",
+        "prev": "0.94%",
+        "dev": "+0.47%",
+        "dir": 1,
+        "raw_actual": 1.41107242318353,
+        "raw_prev": 0.938707263867073,
+        "date": "2025"
       }
     ],
-    "updated": "2026-07-12T10:03:00.652885"
+    "updated": "2026-07-12T21:28:14.118049"
   },
   "BOE": {
     "name": "BOE",
@@ -252,6 +252,17 @@
     },
     "indicators": [
       {
+        "cat": "CRECIMIENTO",
+        "name": "GDP Growth y/y",
+        "actual": "1.39%",
+        "prev": "1.08%",
+        "dev": "+0.31%",
+        "dir": 1,
+        "raw_actual": 1.38844207858726,
+        "raw_prev": 1.08027716858781,
+        "date": "2025"
+      },
+      {
         "cat": "EMPLEO",
         "name": "Unemployment Rate",
         "actual": "4.75%",
@@ -260,17 +271,6 @@
         "dir": 1,
         "raw_actual": 4.746,
         "raw_prev": 4.361,
-        "date": "2025"
-      },
-      {
-        "cat": "CONSUMO",
-        "name": "Household Consumption",
-        "actual": "1.19%",
-        "prev": "0.57%",
-        "dev": "+0.62%",
-        "dir": 1,
-        "raw_actual": 1.1920045262175,
-        "raw_prev": 0.573964751776643,
         "date": "2025"
       },
       {
@@ -285,18 +285,18 @@
         "date": "2025"
       },
       {
-        "cat": "CRECIMIENTO",
-        "name": "GDP Growth y/y",
-        "actual": "1.39%",
-        "prev": "1.08%",
-        "dev": "+0.31%",
+        "cat": "CONSUMO",
+        "name": "Household Consumption",
+        "actual": "1.19%",
+        "prev": "0.57%",
+        "dev": "+0.62%",
         "dir": 1,
-        "raw_actual": 1.38844207858726,
-        "raw_prev": 1.08027716858781,
+        "raw_actual": 1.1920045262175,
+        "raw_prev": 0.573964751776643,
         "date": "2025"
       }
     ],
-    "updated": "2026-07-12T10:03:06.368685"
+    "updated": "2026-07-12T21:28:23.201939"
   },
   "BOC": {
     "name": "BOC",
@@ -345,17 +345,6 @@
     },
     "indicators": [
       {
-        "cat": "INFLACIÓN",
-        "name": "CPI Inflation y/y",
-        "actual": "2.07%",
-        "prev": "2.38%",
-        "dev": "-0.31%",
-        "dir": -1,
-        "raw_actual": 2.07232411149103,
-        "raw_prev": 2.38158383281173,
-        "date": "2025"
-      },
-      {
         "cat": "CRECIMIENTO",
         "name": "GDP Growth y/y",
         "actual": "1.74%",
@@ -367,14 +356,14 @@
         "date": "2025"
       },
       {
-        "cat": "CONSUMO",
-        "name": "Household Consumption",
-        "actual": "2.33%",
-        "prev": "2.62%",
-        "dev": "-0.28%",
+        "cat": "INFLACIÓN",
+        "name": "CPI Inflation y/y",
+        "actual": "2.07%",
+        "prev": "2.38%",
+        "dev": "-0.31%",
         "dir": -1,
-        "raw_actual": 2.33328831416763,
-        "raw_prev": 2.61599459213629,
+        "raw_actual": 2.07232411149103,
+        "raw_prev": 2.38158383281173,
         "date": "2025"
       },
       {
@@ -387,9 +376,20 @@
         "raw_actual": 6.907,
         "raw_prev": 6.351,
         "date": "2025"
+      },
+      {
+        "cat": "CONSUMO",
+        "name": "Household Consumption",
+        "actual": "2.33%",
+        "prev": "2.62%",
+        "dev": "-0.28%",
+        "dir": -1,
+        "raw_actual": 2.33328831416763,
+        "raw_prev": 2.61599459213629,
+        "date": "2025"
       }
     ],
-    "updated": "2026-07-12T10:03:11.504619"
+    "updated": "2026-07-12T21:28:32.984098"
   },
   "RBA": {
     "name": "RBA",
@@ -438,14 +438,14 @@
     },
     "indicators": [
       {
-        "cat": "CRECIMIENTO",
-        "name": "GDP Growth y/y",
-        "actual": "1.35%",
-        "prev": "1.37%",
-        "dev": "-0.02%",
+        "cat": "INFLACIÓN",
+        "name": "CPI Inflation y/y",
+        "actual": "2.87%",
+        "prev": "3.17%",
+        "dev": "-0.29%",
         "dir": -1,
-        "raw_actual": 1.35039785076631,
-        "raw_prev": 1.37340773365975,
+        "raw_actual": 2.87403791660173,
+        "raw_prev": 3.16656665428797,
         "date": "2025"
       },
       {
@@ -460,6 +460,17 @@
         "date": "2025"
       },
       {
+        "cat": "CRECIMIENTO",
+        "name": "GDP Growth y/y",
+        "actual": "1.35%",
+        "prev": "1.37%",
+        "dev": "-0.02%",
+        "dir": -1,
+        "raw_actual": 1.35039785076631,
+        "raw_prev": 1.37340773365975,
+        "date": "2025"
+      },
+      {
         "cat": "CONSUMO",
         "name": "Household Consumption",
         "actual": "2.22%",
@@ -469,20 +480,9 @@
         "raw_actual": 2.22274737072176,
         "raw_prev": 1.78375747340081,
         "date": "2025"
-      },
-      {
-        "cat": "INFLACIÓN",
-        "name": "CPI Inflation y/y",
-        "actual": "2.87%",
-        "prev": "3.17%",
-        "dev": "-0.29%",
-        "dir": -1,
-        "raw_actual": 2.87403791660173,
-        "raw_prev": 3.16656665428797,
-        "date": "2025"
       }
     ],
-    "updated": "2026-07-12T10:03:16.795068"
+    "updated": "2026-07-12T21:28:42.738982"
   },
   "RBNZ": {
     "name": "RBNZ",
@@ -557,17 +557,6 @@
         "date": "2025"
       },
       {
-        "cat": "CONSUMO",
-        "name": "Household Consumption",
-        "actual": "0.00%",
-        "prev": "0.34%",
-        "dev": "-0.33%",
-        "dir": -1,
-        "raw_actual": 0.00296543911471758,
-        "raw_prev": 0.337075403252854,
-        "date": "2024"
-      },
-      {
         "cat": "INFLACIÓN",
         "name": "CPI Inflation y/y",
         "actual": "2.84%",
@@ -577,8 +566,19 @@
         "raw_actual": 2.8397963180572,
         "raw_prev": 2.92279782301957,
         "date": "2025"
+      },
+      {
+        "cat": "CONSUMO",
+        "name": "Household Consumption",
+        "actual": "0.00%",
+        "prev": "0.34%",
+        "dev": "-0.33%",
+        "dir": -1,
+        "raw_actual": 0.00296543911471758,
+        "raw_prev": 0.337075403252854,
+        "date": "2024"
       }
     ],
-    "updated": "2026-07-12T10:03:22.405508"
+    "updated": "2026-07-12T21:29:20.061828"
   }
 }

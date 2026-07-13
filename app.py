@@ -1131,36 +1131,39 @@ with tabs[5]:
             else:
                 st.info(f"VIX = {vix_price:.1f}. No se supera el umbral.")
 
-    # ── RIESGO (CORREGIDO) ──
+    # ── RIESGO (CORREGIDO Y EDUCADO) ──
     elif quant_tab == "Dashboard de Riesgo":
         st.markdown("#### 🛡️ Dashboard de Riesgo (VaR, ES, Drawdown)")
-        st.caption("Métricas de riesgo para un activo o cartera.")
-
         riesgo_activo = st.text_input("Activo para análisis de riesgo:", value="SPY")
 
         if st.button("Calcular riesgo"):
-            with st.spinner(f"Calculando métricas de riesgo para {riesgo_activo}..."):
+            with st.spinner(f"Calculando métricas para {riesgo_activo}..."):
                 try:
                     df_risk = yf.download(riesgo_activo, period="1y", progress=False)
-
                     if df_risk.empty:
-                        st.error(f"No se encontraron datos para {riesgo_activo}. Verifica el símbolo.")
+                        st.error(f"No se encontraron datos para {riesgo_activo}.")
                     else:
-                        returns = df_risk['Close'].pct_change().dropna()
+                        # EDUACIÓN: Usamos .squeeze() para transformar la tabla en una lista simple unidimensional
+                        close_series = df_risk['Close'].squeeze()
+                        returns = close_series.pct_change().dropna()
 
                         if len(returns) < 2:
-                            st.warning("No hay suficientes datos para calcular métricas de riesgo.")
+                            st.warning("Datos insuficientes.")
                         else:
-                            # Extraer todos los valores como floats nativos
-                            var_95 = float(returns.quantile(0.05) * 100) if not pd.isna(returns.quantile(0.05)) else 0.0
-                            var_quantile = returns.quantile(0.05)
+                            # Ahora todos los cálculos matemáticos funcionan perfectamente
+                            var_quantile = float(returns.quantile(0.05))
+                            var_95 = var_quantile * 100
+                            
                             es_filter = returns[returns <= var_quantile]
-                            es_95 = float(es_filter.mean() * 100) if not es_filter.empty and not pd.isna(es_filter.mean()) else 0.0
+                            es_95 = float(es_filter.mean() * 100) if not es_filter.empty else 0.0
+                            
                             cum_ret = (1 + returns).cumprod()
                             drawdown = (cum_ret / cum_ret.cummax() - 1) * 100
-                            max_drawdown = float(drawdown.min()) if not drawdown.empty and not pd.isna(drawdown.min()) else 0.0
-                            vol = float(returns.std() * (252 ** 0.5) * 100) if returns.std() != 0 else 0.0
-                            sharpe = float((returns.mean() / returns.std()) * (252 ** 0.5)) if returns.std() != 0 and not pd.isna(returns.std()) else 0.0
+                            max_drawdown = float(drawdown.min()) if not drawdown.empty else 0.0
+                            
+                            std_dev = float(returns.std())
+                            vol = (std_dev * (252 ** 0.5) * 100) if std_dev != 0 else 0.0
+                            sharpe = ((float(returns.mean()) / std_dev) * (252 ** 0.5)) if std_dev != 0 else 0.0
 
                             c1, c2, c3, c4, c5 = st.columns(5)
                             c1.metric("VaR 95% (1d)", f"{var_95:.2f}%")
@@ -1171,45 +1174,20 @@ with tabs[5]:
 
                             fig_dd = go.Figure()
                             fig_dd.add_trace(go.Scatter(x=drawdown.index, y=drawdown, fill='tozeroy', line=dict(color='#ef4444')))
-                            fig_dd.update_layout(
-                                title="Drawdown Histórico",
-                                paper_bgcolor="#0d1117",
-                                plot_bgcolor="#0d1117",
-                                font=dict(color="#e2e8f0"),
-                                height=250,
-                                margin=dict(l=20, r=20, t=40, b=20)
-                            )
+                            fig_dd.update_layout(title="Drawdown Histórico", paper_bgcolor="#0d1117", plot_bgcolor="#0d1117", font=dict(color="#e2e8f0"), height=250)
                             st.plotly_chart(fig_dd, use_container_width=True)
-
-                            st.caption("💡 **Interpretación:** VaR = pérdida esperada en el peor 5% de los días. ES = promedio de pérdidas en esos días. Max Drawdown = mayor caída desde un pico histórico.")
                 except Exception as e:
                     st.error(f"Error al calcular riesgos: {e}")
 
-    # ── ESCÁNER (CORREGIDO) ──
+    # ── ESCÁNER (CORREGIDO Y EDUCADO) ──
     elif quant_tab == "Escáner de Oportunidades":
         st.markdown("#### 🔍 Escáner en Tiempo Real")
-        st.caption("Detecta automáticamente activos que cumplen condiciones. (Máximo 5 activos por escaneo)")
-
-        activos_scan = {
-            "S&P 500 (SPY)": "SPY",
-            "Nasdaq (QQQ)": "QQQ",
-            "Oro (GLD)": "GLD",
-            "Dólar (UUP)": "UUP",
-            "VIX (VXX)": "VXX",
-            "Crudo WTI (USO)": "USO",
-            "Bitcoin (IBIT)": "IBIT"
-        }
-
-        seleccionados = st.multiselect(
-            "Selecciona activos para escanear (máx. 5):",
-            options=list(activos_scan.keys()),
-            default=list(activos_scan.keys())[:4]
-        )
+        activos_scan = {"S&P 500": "SPY", "Nasdaq": "QQQ", "Oro": "GLD", "Dólar": "UUP", "VIX": "VXX", "Bitcoin": "IBIT"}
+        seleccionados = st.multiselect("Selecciona activos:", options=list(activos_scan.keys()), default=list(activos_scan.keys())[:4])
 
         if st.button("🔎 Escanear ahora") and seleccionados:
-            with st.spinner(f"Escaneando {len(seleccionados)} activos..."):
-                oportunidades = []
-                errores = []
+            with st.spinner("Escaneando activos..."):
+                oportunidades, errores = [], []
                 for nombre in seleccionados:
                     sym = activos_scan[nombre]
                     try:
@@ -1218,20 +1196,23 @@ with tabs[5]:
                             errores.append(f"{nombre}: Datos insuficientes")
                             continue
 
-                        # Extraer valores con .iloc[fila, columna] para garantizar escalar
-                        close_prices = df_scan['Close'].dropna()
+                        # EDUACIÓN: Nuevamente, .squeeze() extrae la columna y la convierte en Serie para evitar errores
+                        close_series = df_scan['Close'].squeeze()
+                        close_prices = close_series.dropna()
+                        
                         if len(close_prices) < 2:
-                            errores.append(f"{nombre}: Datos insuficientes")
+                            errores.append(f"{nombre}: Datos insuficientes tras limpieza")
                             continue
+                            
                         precio = float(close_prices.iloc[-1])
                         precio_anterior = float(close_prices.iloc[-2])
 
-                        sma_50_series = df_scan['Close'].rolling(50).mean()
-                        sma_200_series = df_scan['Close'].rolling(200).mean()
-                        sma_50 = float(sma_50_series.iloc[-1]) if len(df_scan) >= 50 and not pd.isna(sma_50_series.iloc[-1]) else precio
-                        sma_200 = float(sma_200_series.iloc[-1]) if len(df_scan) >= 200 and not pd.isna(sma_200_series.iloc[-1]) else precio
+                        sma_50_series = close_series.rolling(50).mean()
+                        sma_200_series = close_series.rolling(200).mean()
+                        sma_50 = float(sma_50_series.iloc[-1]) if len(close_series) >= 50 else precio
+                        sma_200 = float(sma_200_series.iloc[-1]) if len(close_series) >= 200 else precio
 
-                        cambios = df_scan['Close'].pct_change().dropna()
+                        cambios = close_series.pct_change().dropna()
                         if len(cambios) >= 14:
                             ganancias = cambios[cambios > 0].sum()
                             perdidas = -cambios[cambios < 0].sum()
@@ -1241,34 +1222,25 @@ with tabs[5]:
 
                         cambio = ((precio / precio_anterior) - 1) * 100 if precio_anterior != 0 else 0
 
-                        if any(pd.isna([precio, sma_50, sma_200, rsi, cambio])):
-                            errores.append(f"{nombre}: Datos incompletos (NaN)")
-                            continue
-
                         if precio > sma_50 and sma_50 > sma_200:
                             oportunidades.append(("🟢", f"**{nombre}** | Tendencia alcista | RSI: {rsi:.0f} | Cambio: {cambio:+.2f}%"))
                         elif precio < sma_50 and sma_50 < sma_200:
                             oportunidades.append(("🔴", f"**{nombre}** | Tendencia bajista | RSI: {rsi:.0f} | Cambio: {cambio:+.2f}%"))
                         elif rsi < 30 and precio > sma_200:
-                            oportunidades.append(("🟡", f"**{nombre}** | Sobreventa (RSI<30) pero sobre SMA200 → posible rebote"))
+                            oportunidades.append(("🟡", f"**{nombre}** | Sobreventa bajo soporte → rebote probable"))
                         elif rsi > 70 and precio < sma_200:
-                            oportunidades.append(("🟡", f"**{nombre}** | Sobrecompra (RSI>70) bajo SMA200 → posible caída"))
+                            oportunidades.append(("🟡", f"**{nombre}** | Sobrecompra en resistencia → caída probable"))
                         else:
-                            oportunidades.append(("⚪", f"**{nombre}** | Sin señal clara | RSI: {rsi:.0f} | Cambio: {cambio:+.2f}%"))
+                            oportunidades.append(("⚪", f"**{nombre}** | Neutral | RSI: {rsi:.0f} | Cambio: {cambio:+.2f}%"))
                     except Exception as e:
-                        errores.append(f"{nombre}: {str(e)[:60]}")
+                        errores.append(f"{nombre}: Error interno al procesar.")
 
                 if oportunidades:
-                    st.markdown("#### 📊 Resultados del escáner:")
-                    for color, msg in oportunidades:
-                        st.markdown(f"{color} {msg}")
-                else:
-                    st.info("No se detectaron oportunidades claras en este momento.")
-
+                    st.markdown("#### 📊 Resultados:")
+                    for color, msg in oportunidades: st.markdown(f"{color} {msg}")
                 if errores:
-                    with st.expander("⚠️ Errores al obtener datos de algunos activos"):
-                        for e in errores:
-                            st.warning(e)
+                    with st.expander("⚠️ Ver errores de activos no escaneados"):
+                        for e in errores: st.warning(e)
 
 # ── FOOTER ──────────────────────────────────────────────────
 st.markdown("""
