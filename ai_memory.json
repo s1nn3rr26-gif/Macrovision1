@@ -164,5 +164,15 @@
     "narrativa_usada": true,
     "reglas_usadas": true,
     "modelo_usado": "tinyllama"
+  },
+  {
+    "fecha": "2026-07-12T22:43:51.885447",
+    "decision": "The financial management system for a global multi-asset investment fund includes a macro economic, geopolitical, and psicological analysis of current events. The Fund's experience combines macroeconomics, geopolitics, capital flow analysis, and psychological trends, resulting in a comprehensive view of the market.\n\nThe Analytics section comprises an informative and educational analysis covering financial markets, stocks, currencies, and commodities. The following sections are included:\n\n1. Macroeconomic Analysis (macroeconomics): The Fund's macroeconomic strategy is based on analysing the impact of global events on international economies. This includes identifying the key factors influencing investment decisions, including the effects of interest rates, monetary policies, fiscal policies, and exchange rate movements.\n\n2. Geopolitical Analysis (geopolitics): The Fund's geopolitical strategy is based on understanding current events and how they will impact global markets. This includes analyzing the potential outcomes of different political situations, such as conflicts or regime changes, and assessing their impact on investment decisions.\n\n3. Sentiment Analysis (psychological trends): The Fund's psicological analysis comprises an evaluation of current market sentiment, including news events that may affect stock prices and investment decisions. This section includes a list of the top 5 stocks by sentiment score, which provides insight into the prevailing opinions among market participants.\n\n4. Analytics by Asset Class (financial markets): The Fund's financial markets section analyzes specific asset classes, including equities, bonds, currencies, and commodities, using a combination of macroeconomic, geopolitical, and psychological analysis. This section provides detailed insights into the performance of different investment strategies over time and helps clients make informed decisions about their portfolios.\n\nIn conclusion, this system includes an extensive range of analytics that enables efficient decision-making in diverse markets. It is a valuable tool for financial managers who require comprehensive insight into global markets to make informed investment decisions.",
+    "confianza": 85,
+    "fuente": "Ollama (tinyllama) - Estratega Jefe",
+    "tipo": "informe_semanal",
+    "narrativa_usada": true,
+    "reglas_usadas": true,
+    "modelo_usado": "tinyllama"
   }
 ]

@@ -5,7 +5,7 @@
     "currency": "USD",
     "fullName": "Federal Reserve",
     "currentRate": 3.75,
-    "lastMeeting": "12 Jul 2026",
+    "lastMeeting": "13 Jul 2026",
     "rates": [
       {
         "date": "Jul-26",
@@ -62,17 +62,6 @@
     },
     "indicators": [
       {
-        "cat": "EMPLEO",
-        "name": "Unemployment Rate",
-        "actual": "4.20%",
-        "prev": "4.02%",
-        "dev": "+0.18%",
-        "dir": 1,
-        "raw_actual": 4.198,
-        "raw_prev": 4.022,
-        "date": "2025"
-      },
-      {
         "cat": "CONSUMO",
         "name": "Household Consumption",
         "actual": "3.00%",
@@ -95,6 +84,17 @@
         "date": "2024"
       },
       {
+        "cat": "EMPLEO",
+        "name": "Unemployment Rate",
+        "actual": "4.20%",
+        "prev": "4.02%",
+        "dev": "+0.18%",
+        "dir": 1,
+        "raw_actual": 4.198,
+        "raw_prev": 4.022,
+        "date": "2025"
+      },
+      {
         "cat": "CRECIMIENTO",
         "name": "GDP Growth y/y",
         "actual": "2.16%",
@@ -106,7 +106,7 @@
         "date": "2025"
       }
     ],
-    "updated": "2026-07-12T21:28:03.321051"
+    "updated": "2026-07-13T10:59:43.357956"
   },
   "BCE": {
     "name": "BCE",
@@ -114,7 +114,7 @@
     "currency": "EUR",
     "fullName": "Banco Central Europeo",
     "currentRate": 2.15,
-    "lastMeeting": "12 Jul 2026",
+    "lastMeeting": "13 Jul 2026",
     "rates": [
       {
         "date": "Jul-26",
@@ -166,14 +166,14 @@
         "date": "2025"
       },
       {
-        "cat": "CONSUMO",
-        "name": "Household Consumption",
-        "actual": "1.47%",
-        "prev": "1.65%",
-        "dev": "-0.18%",
-        "dir": -1,
-        "raw_actual": 1.47255129157769,
-        "raw_prev": 1.65201481277421,
+        "cat": "CRECIMIENTO",
+        "name": "GDP Growth y/y",
+        "actual": "1.41%",
+        "prev": "0.94%",
+        "dev": "+0.47%",
+        "dir": 1,
+        "raw_actual": 1.41107242318353,
+        "raw_prev": 0.938707263867073,
         "date": "2025"
       },
       {
@@ -188,18 +188,18 @@
         "date": "2025"
       },
       {
-        "cat": "CRECIMIENTO",
-        "name": "GDP Growth y/y",
-        "actual": "1.41%",
-        "prev": "0.94%",
-        "dev": "+0.47%",
-        "dir": 1,
-        "raw_actual": 1.41107242318353,
-        "raw_prev": 0.938707263867073,
+        "cat": "CONSUMO",
+        "name": "Household Consumption",
+        "actual": "1.47%",
+        "prev": "1.65%",
+        "dev": "-0.18%",
+        "dir": -1,
+        "raw_actual": 1.47255129157769,
+        "raw_prev": 1.65201481277421,
         "date": "2025"
       }
     ],
-    "updated": "2026-07-12T21:28:14.118049"
+    "updated": "2026-07-13T10:59:53.753847"
   },
   "BOE": {
     "name": "BOE",
@@ -207,7 +207,7 @@
     "currency": "GBP",
     "fullName": "Bank of England",
     "currentRate": 3.75,
-    "lastMeeting": "12 Jul 2026",
+    "lastMeeting": "13 Jul 2026",
     "rates": [
       {
         "date": "Jul-26",
@@ -252,14 +252,14 @@
     },
     "indicators": [
       {
-        "cat": "CRECIMIENTO",
-        "name": "GDP Growth y/y",
-        "actual": "1.39%",
-        "prev": "1.08%",
-        "dev": "+0.31%",
+        "cat": "CONSUMO",
+        "name": "Household Consumption",
+        "actual": "1.19%",
+        "prev": "0.57%",
+        "dev": "+0.62%",
         "dir": 1,
-        "raw_actual": 1.38844207858726,
-        "raw_prev": 1.08027716858781,
+        "raw_actual": 1.1920045262175,
+        "raw_prev": 0.573964751776643,
         "date": "2025"
       },
       {
@@ -285,18 +285,18 @@
         "date": "2025"
       },
       {
-        "cat": "CONSUMO",
-        "name": "Household Consumption",
-        "actual": "1.19%",
-        "prev": "0.57%",
-        "dev": "+0.62%",
+        "cat": "CRECIMIENTO",
+        "name": "GDP Growth y/y",
+        "actual": "1.39%",
+        "prev": "1.08%",
+        "dev": "+0.31%",
         "dir": 1,
-        "raw_actual": 1.1920045262175,
-        "raw_prev": 0.573964751776643,
+        "raw_actual": 1.38844207858726,
+        "raw_prev": 1.08027716858781,
         "date": "2025"
       }
     ],
-    "updated": "2026-07-12T21:28:23.201939"
+    "updated": "2026-07-13T11:00:02.551977"
   },
   "BOC": {
     "name": "BOC",
@@ -304,7 +304,7 @@
     "currency": "CAD",
     "fullName": "Bank of Canada",
     "currentRate": 2.25,
-    "lastMeeting": "12 Jul 2026",
+    "lastMeeting": "13 Jul 2026",
     "rates": [
       {
         "date": "Jul-26",
@@ -345,17 +345,6 @@
     },
     "indicators": [
       {
-        "cat": "CRECIMIENTO",
-        "name": "GDP Growth y/y",
-        "actual": "1.74%",
-        "prev": "2.05%",
-        "dev": "-0.30%",
-        "dir": -1,
-        "raw_actual": 1.74268536175708,
-        "raw_prev": 2.04626605401701,
-        "date": "2025"
-      },
-      {
         "cat": "INFLACIÓN",
         "name": "CPI Inflation y/y",
         "actual": "2.07%",
@@ -387,9 +376,20 @@
         "raw_actual": 2.33328831416763,
         "raw_prev": 2.61599459213629,
         "date": "2025"
+      },
+      {
+        "cat": "CRECIMIENTO",
+        "name": "GDP Growth y/y",
+        "actual": "1.74%",
+        "prev": "2.05%",
+        "dev": "-0.30%",
+        "dir": -1,
+        "raw_actual": 1.74268536175708,
+        "raw_prev": 2.04626605401701,
+        "date": "2025"
       }
     ],
-    "updated": "2026-07-12T21:28:32.984098"
+    "updated": "2026-07-13T11:00:11.117752"
   },
   "RBA": {
     "name": "RBA",
@@ -397,7 +397,7 @@
     "currency": "AUD",
     "fullName": "Reserve Bank of Australia",
     "currentRate": 4.1,
-    "lastMeeting": "12 Jul 2026",
+    "lastMeeting": "13 Jul 2026",
     "rates": [
       {
         "date": "Jul-26",
@@ -438,6 +438,17 @@
     },
     "indicators": [
       {
+        "cat": "CRECIMIENTO",
+        "name": "GDP Growth y/y",
+        "actual": "1.35%",
+        "prev": "1.37%",
+        "dev": "-0.02%",
+        "dir": -1,
+        "raw_actual": 1.35039785076631,
+        "raw_prev": 1.37340773365975,
+        "date": "2025"
+      },
+      {
         "cat": "INFLACIÓN",
         "name": "CPI Inflation y/y",
         "actual": "2.87%",
@@ -460,17 +471,6 @@
         "date": "2025"
       },
       {
-        "cat": "CRECIMIENTO",
-        "name": "GDP Growth y/y",
-        "actual": "1.35%",
-        "prev": "1.37%",
-        "dev": "-0.02%",
-        "dir": -1,
-        "raw_actual": 1.35039785076631,
-        "raw_prev": 1.37340773365975,
-        "date": "2025"
-      },
-      {
         "cat": "CONSUMO",
         "name": "Household Consumption",
         "actual": "2.22%",
@@ -482,7 +482,7 @@
         "date": "2025"
       }
     ],
-    "updated": "2026-07-12T21:28:42.738982"
+    "updated": "2026-07-13T11:00:19.592928"
   },
   "RBNZ": {
     "name": "RBNZ",
@@ -490,7 +490,7 @@
     "currency": "NZD",
     "fullName": "Reserve Bank of New Zealand",
     "currentRate": 2.25,
-    "lastMeeting": "12 Jul 2026",
+    "lastMeeting": "13 Jul 2026",
     "rates": [
       {
         "date": "Jul-26",
@@ -535,28 +535,6 @@
     },
     "indicators": [
       {
-        "cat": "CRECIMIENTO",
-        "name": "GDP Growth y/y",
-        "actual": "0.46%",
-        "prev": "-0.87%",
-        "dev": "+1.33%",
-        "dir": 1,
-        "raw_actual": 0.462871830681081,
-        "raw_prev": -0.868722371893952,
-        "date": "2025"
-      },
-      {
-        "cat": "EMPLEO",
-        "name": "Unemployment Rate",
-        "actual": "5.08%",
-        "prev": "4.72%",
-        "dev": "+0.35%",
-        "dir": 1,
-        "raw_actual": 5.076,
-        "raw_prev": 4.724,
-        "date": "2025"
-      },
-      {
         "cat": "INFLACIÓN",
         "name": "CPI Inflation y/y",
         "actual": "2.84%",
@@ -577,8 +555,30 @@
         "raw_actual": 0.00296543911471758,
         "raw_prev": 0.337075403252854,
         "date": "2024"
+      },
+      {
+        "cat": "EMPLEO",
+        "name": "Unemployment Rate",
+        "actual": "5.08%",
+        "prev": "4.72%",
+        "dev": "+0.35%",
+        "dir": 1,
+        "raw_actual": 5.076,
+        "raw_prev": 4.724,
+        "date": "2025"
+      },
+      {
+        "cat": "CRECIMIENTO",
+        "name": "GDP Growth y/y",
+        "actual": "0.46%",
+        "prev": "-0.87%",
+        "dev": "+1.33%",
+        "dir": 1,
+        "raw_actual": 0.462871830681081,
+        "raw_prev": -0.868722371893952,
+        "date": "2025"
       }
     ],
-    "updated": "2026-07-12T21:29:20.061828"
+    "updated": "2026-07-13T11:00:28.141759"
   }
 }
